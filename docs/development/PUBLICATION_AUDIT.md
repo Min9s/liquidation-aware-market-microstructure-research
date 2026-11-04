@@ -1,5 +1,9 @@
 # Publication readiness review
 
+**Historical record:** the file inventory and verified counts below describe the
+earlier release review. The later execution module and related files are outside
+that inventory. Their current scope and verification are recorded in [PLAN.md](PLAN.md).
+
 This is a source-release review, not an empirical research result or a guarantee
 that every possible secret pattern can be detected. No commit, remote creation,
 GitHub push, or package publication was performed.
@@ -112,7 +116,7 @@ added because the requested action was to review rights and propose choices.
 
 Choose **MIT** (recommended) or **Apache-2.0**, provide the desired copyright-holder
 attribution, and add matching license text/metadata before describing the project as
-open-source licensed. Details and references are in [PROVENANCE.md](PROVENANCE.md).
+open-source licensed. Details and references are in [PROVENANCE.md](../../PROVENANCE.md).
 No further financial research feature is required for this release boundary.
 
 The reviewed scope identified no technical or sensitive-content blocker to that
