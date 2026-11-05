@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "market-microstructure-toolkit"
-version = "0.1.0"
-description = "Offline liquidation-aware microstructure calculations and exploratory research"
+version = "0.2.0"
+description = "Synthetic OMS lifecycle, cash reservations and crash recovery with microstructure research"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
