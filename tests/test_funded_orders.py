@@ -333,8 +333,11 @@ def test_funded_log_bound_does_not_release_a_pending_reservation(monkeypatch):
     monkeypatch.setattr(order_protocol, "MAX_EVENTS", 2)
     snapshot, log = manager.snapshot(), manager.export_log()
     with pytest.raises(ValueError, match="bound"):
-        manager.request_cancel("buy-1")
+        submit(manager, order("buy-2"))
     assert manager.snapshot() == snapshot and manager.export_log() == log
+    manager.request_cancel("buy-1")
+    manager.apply(venue.cancel("buy-1"))
+    assert manager.snapshot()["account"]["reserved_cash"] == "0"
 
 
 @pytest.mark.parametrize("event", [None, {"action": []}, {"action": "network_send"},

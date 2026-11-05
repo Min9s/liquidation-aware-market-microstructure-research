@@ -69,6 +69,7 @@ LGI의 가격 효과·관측 상태 효과·상호작용을 분리하며, LGI를
 python examples/order_lifecycle.py
 python examples/funded_order_lifecycle.py
 python examples/durable_order_recovery.py
+python examples/durable_order_recovery.py --crash
 ```
 
 별도 가상 거래소에서 접수 응답 유실 → 조회 복원 → 부분 체결 중 취소 요청 → 추가 체결 → 취소 확정을 다룹니다.
@@ -82,6 +83,8 @@ v1 파생계약 담보와 구분한 현금 계정이며 수수료·차입·공�
 추가 SQLite 계층은 승인·예약과 응답 반영을 저장하고 재시작 후 미종료 주문을 조회 대상으로 돌립니다.
 같은 명령을 다시 확인해도 발송 명령을 재반환하지 않으며, 조회 부재만으로 예약을 풀지 않습니다.
 [발송 전 저장·강제 종료·대사 검증](docs/DURABLE_ORDERS.md)은 별도 스키마로 제공합니다.
+`--crash`는 가상 거래소를 유지한 채 클라이언트만 실제 강제 종료하고, 거래소 체결로 독립 계산한 원장과 비교합니다.
+메모리 엔진은 생성 스레드에서만 접근합니다. 접수 예산을 소진해도 기존 주문의 응답·취소·대사는 계속 처리합니다.
 
 ## 범위와 재현성
 

@@ -2,13 +2,16 @@
 
 from copy import deepcopy
 from decimal import Decimal, localcontext
+from hashlib import sha256
+from threading import current_thread
+from weakref import ref
 
 from .execution_contracts import KIND, number
 from . import order_protocol as protocol
 
 
 class OrderManager:
-    """Order state and cancel-request state are independent; no automatic resends."""
+    """Single-owner state; queue foreign-thread callbacks to the creating thread."""
 
     def __init__(self, instruments, venue_id="synthetic-venue"):
         from .execution_contracts import identity
@@ -16,11 +19,19 @@ class OrderManager:
         self.instruments = protocol.instruments(instruments)
         self.venue_id = venue_id
         self._orders, self._executions, self._reports = {}, {}, {}
+        self._revisions = {}
         self._log = []
+        # Weak references retain identity across deepcopy without copying Thread locks.
+        self._owner = ref(current_thread())
+
+    def _check_owner(self):
+        if self._owner() is not current_thread():
+            raise RuntimeError("Order manager must be accessed from its owner thread")
 
     def _capacity(self):
+        self._check_owner()
         if len(self._log) >= protocol.MAX_EVENTS:
-            raise ValueError("Synthetic lifecycle log bound reached")
+            raise ValueError("Synthetic lifecycle admission bound reached")
 
     def submit(self, order):
         self._capacity()
@@ -35,7 +46,7 @@ class OrderManager:
         return deepcopy(spec)
 
     def mark_unknown(self, client_order_id):
-        self._capacity()
+        self._check_owner()
         prior = self._orders[client_order_id]
         candidate = deepcopy(prior)
         if candidate["cancel_status"] == "pending":
@@ -48,7 +59,7 @@ class OrderManager:
         self._log.append(dict(action="mark_unknown", client_order_id=client_order_id))
 
     def request_cancel(self, client_order_id):
-        self._capacity()
+        self._check_owner()
         prior = self._orders[client_order_id]
         if prior["status"] not in {"open", "partially_filled"} or prior["cancel_status"] in {"pending", "unknown"}:
             raise ValueError("Cancel requires a known live order with no unresolved cancel request")
@@ -59,7 +70,7 @@ class OrderManager:
 
     def apply(self, report):
         """Validate a complete candidate before changing order or execution facts."""
-        self._capacity()
+        self._check_owner()
         report = protocol.report(report, self.instruments, self.venue_id)
         event_id = report["event_id"]
         encoded = protocol.canonical(report)
@@ -82,6 +93,10 @@ class OrderManager:
             raise ValueError("Exchange order ID reused across client orders")
         if old is not None and state["exchange_order_id"] != old["exchange_order_id"]:
             raise ValueError("Exchange order binding changed")
+        revision_key = (client_id, state["revision"])
+        fingerprint = sha256(protocol.canonical(state).encode()).digest()
+        if revision_key in self._revisions and self._revisions[revision_key] != fingerprint:
+            raise ValueError("Conflicting state at an observed revision")
         executions = dict(self._executions)
         for fill in state["fills"]:
             fact = dict(client_order_id=client_id, symbol=spec["symbol"], side=spec["side"], **fill)
@@ -130,10 +145,12 @@ class OrderManager:
         self._orders[client_id] = candidate
         self._executions = executions
         self._reports[event_id] = encoded
+        self._revisions[revision_key] = fingerprint
         self._log.append(dict(action="apply", report=report))
         return outcome
 
     def snapshot(self):
+        self._check_owner()
         with localcontext() as context:
             context.prec = 128
             inventory = {symbol: Decimal(0) for symbol in self.instruments}
@@ -161,18 +178,19 @@ class OrderManager:
                         cash_flow=format(cash_flow, "f"), executions=len(self._executions))
 
     def export_log(self):
+        self._check_owner()
         return deepcopy(self._log)
 
     @classmethod
     def replay(cls, instruments, log, venue_id="synthetic-venue"):
-        if type(log) is not list or len(log) > protocol.MAX_EVENTS:
-            raise ValueError("Bounded lifecycle log required")
+        if type(log) is not list:
+            raise ValueError("Lifecycle log list required")
         manager = cls(instruments, venue_id)
         for entry in log:
             action = entry.get("action") if isinstance(entry, dict) else None
             if action == "submit" and set(entry) == {"action", "order"}:
                 manager.submit(entry["order"])
-            elif action in {"mark_unknown", "request_cancel"} and set(entry) == {"action", "client_order_id"}:
+            elif action in ("mark_unknown", "request_cancel") and set(entry) == {"action", "client_order_id"}:
                 getattr(manager, action)(entry["client_order_id"])
             elif action == "apply" and set(entry) == {"action", "report"}:
                 manager.apply(entry["report"])

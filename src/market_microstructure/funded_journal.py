@@ -161,10 +161,7 @@ class FundedJournal:
         if manager.export_log()["events"]:
             raise ValueError("Initial journal must not contain prior events")
         records = self._connection.execute(
-            "SELECT sequence, command_id, request, result FROM commands ORDER BY sequence LIMIT ?",
-            (protocol.MAX_EVENTS + 1,)).fetchall()
-        if len(records) > protocol.MAX_EVENTS:
-            raise ValueError("Funded journal command bound reached")
+            "SELECT sequence, command_id, request, result FROM commands ORDER BY sequence").fetchall()
         for index, (sequence, command_id, request, result) in enumerate(records, 1):
             identity(command_id)
             if sequence != index:
@@ -220,8 +217,8 @@ class FundedJournal:
                     self._connection.commit()
                     return dict(status="duplicate", command_id=command_id, sequence=sequence,
                                 result=_load(prior_result), outgoing=None)
-            if len(records) >= protocol.MAX_EVENTS:
-                raise ValueError("Funded journal command bound reached")
+            if request.get("action") == "submit" and len(records) >= protocol.MAX_EVENTS:
+                raise ValueError("Funded journal admission bound reached")
             result = _reduce(manager, request)
             sequence = len(records) + 1
             self._connection.execute("INSERT INTO commands VALUES(?, ?, ?, ?)",

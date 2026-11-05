@@ -11,6 +11,7 @@ STATUSES = {"open", "partially_filled", *TERMINAL}
 REPORT_TYPES = {"accepted", "trade", "canceled", "rejected", "cancel_rejected", "snapshot"}
 MAX_ORDERS = 1000
 MAX_FILLS = 1000
+# Stop new submissions at this audit-history budget; accepted orders must drain.
 MAX_EVENTS = 10000
 
 

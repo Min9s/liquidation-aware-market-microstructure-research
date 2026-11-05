@@ -10,7 +10,7 @@ from . import order_reservations as funding
 
 
 class FundedOrderManager:
-    """Cash-funded buys and inventory-backed sells; reports are not admission requests."""
+    """Single-owner cash-funded buys and inventory-backed sells."""
 
     def __init__(self, instruments, policy, venue_id="synthetic-venue"):
         self._manager = OrderManager(instruments, venue_id)
@@ -19,10 +19,12 @@ class FundedOrderManager:
         self._last_decision_ns = None
 
     def _capacity(self):
+        self._manager._check_owner()
         if len(self._log) >= protocol.MAX_EVENTS:
-            raise ValueError("Funded lifecycle log bound reached")
+            raise ValueError("Funded lifecycle admission bound reached")
 
     def _quotes(self, marks, now_ns):
+        self._manager._check_owner()
         quotes = funding.marks(marks, self._manager.instruments, now_ns)
         if self._last_decision_ns is not None and now_ns < self._last_decision_ns:
             raise ValueError("Funded account decision clock cannot move backwards")
@@ -69,7 +71,7 @@ class FundedOrderManager:
                                       before=before, projected=projected))
 
     def _action(self, action, **arguments):
-        self._capacity()
+        self._manager._check_owner()
         trial = deepcopy(self._manager)
         outcome = getattr(trial, action)(**arguments)
         balances = funding.account(trial.snapshot(), self._policy)
@@ -100,6 +102,7 @@ class FundedOrderManager:
 
     def export_log(self):
         """Self-contained replay input; in-memory, not a durable journal."""
+        self._manager._check_owner()
         return deepcopy(dict(source_kind=KIND, schema="funded-orders-log-v1",
                              instruments=self._manager.instruments, policy=self._policy,
                              venue_id=self._manager.venue_id, events=self._log))
@@ -110,8 +113,8 @@ class FundedOrderManager:
         if bundle["source_kind"] != KIND or bundle["schema"] != "funded-orders-log-v1":
             raise ValueError("Synthetic funded log required")
         events = bundle["events"]
-        if type(events) is not list or len(events) > protocol.MAX_EVENTS:
-            raise ValueError("Bounded funded log required")
+        if type(events) is not list:
+            raise ValueError("Funded log list required")
         manager = cls(bundle["instruments"], bundle["policy"], bundle["venue_id"])
         for entry in events:
             action = entry.get("action") if isinstance(entry, dict) else None

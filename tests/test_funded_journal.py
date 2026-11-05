@@ -383,7 +383,7 @@ def test_code_definition_change_is_rejected_by_live_handle_and_open(tmp_path, mo
             FundedJournal.open(path)
 
 
-def test_database_bound_allows_duplicate_lookup_without_new_commands(tmp_path, monkeypatch):
+def test_database_admission_bound_allows_duplicate_lookup_and_queries(tmp_path, monkeypatch):
     from market_microstructure import order_protocol
     path = tmp_path / "orders.sqlite"
     with create(path) as store:
@@ -392,8 +392,10 @@ def test_database_bound_allows_duplicate_lookup_without_new_commands(tmp_path, m
         before = store.recover()
         assert submit(store)["status"] == "duplicate"
         with pytest.raises(ValueError, match="bound"):
-            store.reconcile("new-query", "buy-1", None)
+            submit(store, "new-submit", dict(ORDER, client_order_id="buy-2"))
         assert store.recover() == before
+        store.reconcile("new-query", "buy-1", None)
+        assert balances(store)["reserved_cash"] == "1000"
 
 
 def test_assessment_and_replayed_decision_clock_survive_reopen(tmp_path):

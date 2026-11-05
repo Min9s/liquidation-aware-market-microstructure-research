@@ -295,17 +295,18 @@ def test_ack_cannot_precede_new_order_rejection_even_when_delivered_late():
     assert_rejected_atomically(manager, stale)
 
 
-def test_event_bound_failure_does_not_change_venue_order_or_manager(monkeypatch):
+def test_admission_bound_preserves_state_but_allows_cancel(monkeypatch):
     from market_microstructure import order_protocol
     manager, venue, ack = setup_order()
     manager.apply(ack)
     before, log = manager.snapshot(), manager.export_log()
     monkeypatch.setattr(order_protocol, "MAX_EVENTS", 2)
     with pytest.raises(ValueError, match="bound"):
-        manager.request_cancel("buy-1")
+        manager.submit(order("buy-2"))
     assert manager.snapshot() == before and manager.export_log() == log
-    venue.query("buy-1")  # Venue's second report exhausts its separate bound.
+    venue.query("buy-1")
     with pytest.raises(ValueError, match="bound"):
-        venue.cancel("buy-1")
-    monkeypatch.setattr(order_protocol, "MAX_EVENTS", 10000)
-    assert venue.query("buy-1")["state"] == ack["state"]
+        venue.submit(order("buy-2"))
+    manager.request_cancel("buy-1")
+    manager.apply(venue.cancel("buy-1"))
+    assert manager.snapshot()["orders"]["buy-1"]["status"] == "canceled"
