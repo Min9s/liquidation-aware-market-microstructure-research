@@ -1,10 +1,11 @@
-# OMS v2 / 패키지 0.2.0 릴리스 준비
+# OMS v2 / 패키지 0.2.0 검토·승인 기록
 
-상태: **기능 브랜치 push와 PR 생성 완료, 실제 Linux CI 통과. main 병합·릴리스 발행 승인 대기.**
-검토일은 2026-11-05다. 별도 사용자 승인에 따라 기능 브랜치를 업로드하고 PR #1을 생성했다.
-main 병합·main push·태그·GitHub Release 생성은 하지 않았다.
-로컬/공개 main 기준은 `fb7afec7909d07cdc41d9a3f899361c982e06f0d`이고 준비 브랜치는 `feat/simulated-order-lifecycle`이다.
-패키지 버전은0.2.0으로 준비하며 실제 버전 태그는 만들지 않았다.
+상태: **사용자가 PR #1 main 병합과 v0.2.0 GitHub Release 발행을 승인했다. 발행 조건은 병합된 main의 CI 성공이다.**
+검토일은 2026-11-05다. 기능 브랜치와 PR에서 실제 Linux CI를 확인한 뒤 릴리스 승인을 받았다.
+이 문서는 병합 전 검토·승인을 기록한다. 최종 main 커밋과 main CI 실행 링크, 발행 상태는
+[v0.2.0 릴리스](https://github.com/Min9s/liquidation-aware-market-microstructure-research/releases/tag/v0.2.0) 설명에 기록한다.
+PR의 base는 `fb7afec7909d07cdc41d9a3f899361c982e06f0d`이고 준비 브랜치는 `feat/simulated-order-lifecycle`이다.
+패키지 버전은0.2.0이다. 태그는 성공한 main CI의 정확한 커밋을 가리켜야 한다.
 
 ## main 대비 포함할 변경
 
@@ -84,15 +85,15 @@ checkout/setup-python은 확인한 공식 v6 commit SHA에 고정하고 저장�
 각 job의 전체 검증과 별도 대표 E2E step도 success이며, CI 실패에 따른 코드 수정은 없었다.
 후속 문서 갱신 커밋의 상태는 [PR #1의 현재 HEAD checks](https://github.com/Min9s/liquidation-aware-market-microstructure-research/pull/1)에서 확인한다.
 
-## 릴리스 판정과 이후 실행 순서
+## 승인된 릴리스 절차
 
-로컬·원격 Linux 검증을 확인했고 추가 P0/P1 문제는 재현하지 못했다. 현재는 승인 후 통합 가능한 후보 상태다.
-다음 작업은 사용자 승인 범위에 따라 진행한다.
+로컬·원격 Linux 검증을 확인했고 추가 P0/P1 문제는 재현하지 못했다. 사용자는 다음 절차를 승인했다.
+어느 단계에서든 문제가 발생하면 후속 발행 단계는 중단하고 원인과 해결 방안을 먼저 보고한다.
 
 1. PR의 최신 head와 base, 충돌 여부, Python3.11/3.13 checks가 모두 성공인지 다시 확인한다.
-2. 승인된 diff와 결과를 바탕으로 main에 통합한다. 현재 main은 여전히 v1 기준 커밋이다.
-3. 통합된 main에서도 동일 CI가 성공해야 한다. 이 결과는 병합 전에는 아직 없다.
-4. 승인 범위에 따라 검증된 main 커밋을 대상으로 v0.2.0 태그와 릴리스를 발행한다.
+2. 승인된 diff와 결과를 바탕으로 PR #1을 main에 통합한다.
+3. 통합된 main의 정확한 커밋에서 Python3.11/3.13 CI와 대표 SIGKILL 검증이 성공해야 한다.
+4. 검증된 main 커밋을 대상으로 v0.2.0 태그와 릴리스를 발행한다. 실제 구현과 아래 제한사항을 릴리스 설명에 포함한다.
 
 현재 코드의 알려진 제약:
 

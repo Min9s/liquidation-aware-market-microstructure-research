@@ -3,7 +3,7 @@
 **주문 응답이 유실되거나 프로세스가 강제 종료돼도 주문·현금·보유 수량·예약이 일치하는지 검증하는 Python 프로젝트입니다.**
 청산 노출 연구에서 출발해 합성 주문 생명주기와 SQLite 복구 경로를 추가했습니다.
 공개 입력은 모두 `SYNTHETIC_TEST_ONLY`이며 API 키·거래소 계정·비공개 데이터 없이 실행합니다.
-패키지 `0.2.0`의 릴리스 준비본입니다. [검토 결과와 통합 조건](docs/development/RELEASE_V2.md)을 함께 제공합니다.
+패키지 버전은 `0.2.0`입니다. [검토·승인 기록](docs/development/RELEASE_V2.md)을 함께 제공합니다.
 
 ## 설치하고 대표 사례 실행하기
 
@@ -74,7 +74,8 @@ wheel 설치 환경에서도 강제 종료 데모를 실행했습니다.
 GitHub-hosted Python 3.11.18·3.13.18에서 각각 **589개 통과·skip0**, 예제15개와 SIGKILL 원장 검산 성공을 확인했습니다.
 [첫 PR 검증 실행](https://github.com/Min9s/liquidation-aware-market-microstructure-research/actions/runs/41977752392)과
 [PR #1의 현재 checks](https://github.com/Min9s/liquidation-aware-market-microstructure-research/pull/1)에서 결과를 확인할 수 있습니다.
-공개 main 통합과 태그·릴리스 발행은 승인 대기입니다. 상세 결과는 [릴리스 검증 기록](docs/development/RELEASE_V2.md)에 있습니다.
+정식 릴리스는 main CI가 성공한 커밋을 대상으로 발행합니다. 최종 커밋과 main CI 결과는
+[GitHub Releases](https://github.com/Min9s/liquidation-aware-market-microstructure-research/releases)에서 확인할 수 있습니다.
 
 ## 기존 연구·실행 모듈과의 관계
 
