@@ -105,4 +105,5 @@ A5 매도 대기 중 추가 A1 매도는 예약 수량 부족으로 거부합니
 [경계 테스트](../tests/test_funded_orders.py),
 [대표 사례 테스트](../tests/test_funded_order_case.py)를 확인할 수 있습니다.
 기존 bounded 생명주기 한도를 사용하며 상태 복사 방식의 처리량·지연은 벤치마크하지 않았습니다.
-이번 단계도 메모리 재생까지입니다. 다음 핵심은 발송 전 저장과 재시작 후 미응답 주문 대사입니다.
+FundedOrderManager 자체는 메모리 재생까지입니다. 후속 [FundedJournal](DURABLE_ORDERS.md)은
+이를 감싸 발송 전 저장·예약 복구·재시작 후 미응답 조회를 제공합니다. 기존 파생계약 SQLite 스키마와는 별도입니다.
