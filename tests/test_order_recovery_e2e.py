@@ -41,6 +41,12 @@ def test_crash_demo_is_one_command_and_cleans_its_temporary_database(tmp_path):
     assert "Client forced exit=-9" in run.stdout
     assert "Independent venue ledger matches: True" in run.stdout
     assert "final: cash=503, reserved=0, available=503" in run.stdout
+    before = next(line for line in run.stdout.splitlines() if line.startswith("before_crash:"))
+    restarted = next(line for line in run.stdout.splitlines() if line.startswith("restart:"))
+    assert "order=partially_filled; cancel=pending; filled=3; position={'SYNTH-A': '3'}" in before
+    assert before.split(": ", 1)[1] == restarted.split(": ", 1)[1]
+    final = next(line for line in run.stdout.splitlines() if line.startswith("final:"))
+    assert "order=canceled; cancel=canceled; filled=5; position={'SYNTH-A': '5'}" in final
     assert list(tmp_path.iterdir()) == []
 
 

@@ -212,22 +212,35 @@ def run_crash_case():
                 redelivery_unchanged=True, oracle=oracle, execution_ids_match=True)
 
 
+def _print_phase(label, recovery):
+    account = recovery["snapshot"]["account"]
+    order = recovery["snapshot"]["lifecycle"]["orders"]["buy-a"]
+    print(f"{label}: cash={account['cash']}, reserved={account['reserved_cash']}, "
+          f"available={account['available_cash']}; order={order['status']}; cancel={order['cancel_status']}; "
+          f"filled={order['filled_quantity']}; position={account['inventory']}; "
+          f"query targets={len(recovery['reconciliation'])}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--crash", action="store_true", help="kill the client process and audit against the surviving venue")
     arguments = parser.parse_args()
     result = run_crash_case() if arguments.crash else run_case()
     print("SYNTHETIC_TEST_ONLY — SQLite command/reservation recovery; no transport retries")
-    for label in ("committed", "unknown", "partial", "final"):
-        account = result[label]["snapshot"]["account"]
-        print(f"{label}: cash={account['cash']}, reserved={account['reserved_cash']}, "
-              f"available={account['available_cash']}; query targets={len(result[label]['reconciliation'])}")
+    print("Local checkpoints: unreceived venue fills appear only after query reconciliation")
+    for label in ("committed", "unknown", "partial"):
+        _print_phase(label, result[label])
+    if arguments.crash:
+        _print_phase("before_crash", result["before_crash"])
+        print(f"Client forced exit={result['client_exit_code']}; venue submissions={result['venue_submissions']}")
+        _print_phase("restart", result["restart"])
+    _print_phase("final", result["final"])
+    _print_phase("recovered", result["recovered"])
     print(f"Repeated submit: {result['duplicate']['status']}, outgoing={result['duplicate']['outgoing']}")
     print(f"Absent query unresolved: {result['absent']['result']['unresolved']}")
     print(f"Final inventory={result['final']['snapshot']['account']['inventory']}")
     print(f"Reopened SQLite snapshot matches: {result['recovered'] == result['final']}")
     if arguments.crash:
-        print(f"Client forced exit={result['client_exit_code']}; venue submissions={result['venue_submissions']}")
         print("Independent venue ledger matches: True")
 
 
