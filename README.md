@@ -70,9 +70,11 @@ macOS의 깨끗한 비편집 설치에서 Python 3.11.6·3.13.15를 검증했습
 검증 명령은 전체 테스트·공개 예제15개·로컬 문서 링크·설치 의존성을 검사하며, 실패·오류·skip을 허용하지 않습니다.
 wheel 설치 환경에서도 강제 종료 데모를 실행했습니다.
 
-[Linux CI](.github/workflows/ci.yml)는 Ubuntu 24.04의 Python 3.11·3.13에서 패키지 설치 → 전체 검증 → 대표 E2E를 실행하도록 구성했습니다.
-**이 준비본은 원격에 업로드하지 않았으므로 GitHub-hosted Linux 실행 결과는 아직 없습니다.**
-실제 두 job의 성공 확인을 릴리스 조건으로 남겼습니다. 현재 결과와 명령은 [릴리스 검증 기록](docs/development/RELEASE_V2.md)에 있습니다.
+[Linux CI](.github/workflows/ci.yml)는 Ubuntu 24.04의 Python 3.11·3.13에서 패키지 설치 → 전체 검증 → 대표 E2E를 실행합니다.
+GitHub-hosted Python 3.11.18·3.13.18에서 각각 **589개 통과·skip0**, 예제15개와 SIGKILL 원장 검산 성공을 확인했습니다.
+[첫 PR 검증 실행](https://github.com/Min9s/liquidation-aware-market-microstructure-research/actions/runs/41977752392)과
+[PR #1의 현재 checks](https://github.com/Min9s/liquidation-aware-market-microstructure-research/pull/1)에서 결과를 확인할 수 있습니다.
+공개 main 통합과 태그·릴리스 발행은 승인 대기입니다. 상세 결과는 [릴리스 검증 기록](docs/development/RELEASE_V2.md)에 있습니다.
 
 ## 기존 연구·실행 모듈과의 관계
 

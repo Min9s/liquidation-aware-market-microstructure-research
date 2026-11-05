@@ -1,7 +1,8 @@
 # OMS v2 / 패키지 0.2.0 릴리스 준비
 
-상태: **기능 브랜치의 릴리스 후보. 원격 Linux CI 확인 전 공개 릴리스 보류.**
-검토일은 2026-11-05다. 이번 작업에서 main 병합·push·태그·GitHub Release 생성은 하지 않는다.
+상태: **기능 브랜치 push와 PR 생성 완료, 실제 Linux CI 통과. main 병합·릴리스 발행 승인 대기.**
+검토일은 2026-11-05다. 별도 사용자 승인에 따라 기능 브랜치를 업로드하고 PR #1을 생성했다.
+main 병합·main push·태그·GitHub Release 생성은 하지 않았다.
 로컬/공개 main 기준은 `fb7afec7909d07cdc41d9a3f899361c982e06f0d`이고 준비 브랜치는 `feat/simulated-order-lifecycle`이다.
 패키지 버전은0.2.0으로 준비하며 실제 버전 태그는 만들지 않았다.
 
@@ -57,13 +58,13 @@ python examples/durable_order_recovery.py --crash
 | 확인 대상 | 상태 |
 |---|---|
 | macOS Python3.11 / Python3.13 비편집 설치 | Python3.11.6·3.13.15의 별도 가상환경에0.2.0 설치 후 각각 전체 검증·대표 E2E 통과 |
-| 전체 테스트·예제·문서·의존성 | 두 환경 각각589 passed/skip0·예제15개·로컬 링크77개·pip check 통과 |
+| 전체 테스트·예제·문서·의존성 | 두 환경 각각589 passed/skip0·예제15개·로컬 문서 링크·pip check 통과 |
 | 실패·skip 차단 | 임시 복사본에 의도적인 실패/skip 테스트를 각각 주입. 두 경우 모두 검증 명령 exit1 확인 후 주입 파일 제거 |
 | wheel·sdist 빌드/포함 | 0.2.0 빌드, workflow·릴리스 문서 포함 확인. sdist 추출본 전체 검증과 최소 wheel 환경의 SIGKILL 데모 통과 |
 | Linux workflow 정적 검사 | 공식 배포본 체크섬을 확인한 actionlint1.7.12 통과. shellcheck/pyflakes 외부 연동은 제외 |
-| GitHub-hosted Ubuntu24.04 / Python3.11·3.13 | **미실행**. 업로드 금지 조건으로 원격 실행을 시작하지 않음 |
+| GitHub-hosted Ubuntu24.04 / Python3.11·3.13 | Python3.11.18·3.13.18 각각 비편집 설치·589 passed/skip0·예제15개·문서·의존성·대표 SIGKILL 검산 성공 |
 
-로컬에는 Linux 컨테이너 런타임이 없다. macOS에서 Python 버전별 검증한 결과를 Linux 성공으로 표시하지 않는다.
+Linux 결과는 실제 GitHub-hosted runner에서 확인했다. macOS의 로컬 결과와 구분해 기록한다.
 실제 검증 의존성은 pytest9.2.0·PyArrow25.0.1이며 설치 허용 범위는 pyproject.toml에 선언돼 있다.
 실패/skip 주입과 배포 검증은 저장소 밖의 임시 복사본에서 수행했다. 주입 테스트와 local/·output/ 파일은 배포하지 않는다.
 
@@ -77,17 +78,21 @@ checkout/setup-python은 확인한 공식 v6 commit SHA에 고정하고 저장�
 
 구성 근거는 [GitHub Python CI 문서](https://docs.github.com/en/actions/tutorials/build-and-test-code/python),
 [setup-python matrix 설명](https://github.com/actions/setup-python/blob/main/docs/advanced-usage.md)이다.
-GitHub Actions 자체를 이번 작업에서 실행하거나 변경한 원격 파일은 없다.
+첫 원격 검증의 head는 `399bb6477dd2b38ed8a23d500556aa58700ef473`이다.
+[브랜치 push 실행](https://github.com/Min9s/liquidation-aware-market-microstructure-research/actions/runs/41977695758)과
+[PR 실행](https://github.com/Min9s/liquidation-aware-market-microstructure-research/actions/runs/41977752392)의 두 Python job이 모두 성공했다.
+각 job의 전체 검증과 별도 대표 E2E step도 success이며, CI 실패에 따른 코드 수정은 없었다.
+후속 문서 갱신 커밋의 상태는 [PR #1의 현재 HEAD checks](https://github.com/Min9s/liquidation-aware-market-microstructure-research/pull/1)에서 확인한다.
 
 ## 릴리스 판정과 이후 실행 순서
 
-로컬 검증과 정적 검사가 끝나도 Linux matrix를 실행하기 전까지 릴리스 판정은 조건부다.
-사용자가 원격 업로드를 별도로 요청한 뒤 아래 순서로 진행한다.
+로컬·원격 Linux 검증을 확인했고 추가 P0/P1 문제는 재현하지 못했다. 현재는 승인 후 통합 가능한 후보 상태다.
+다음 작업은 사용자 승인 범위에 따라 진행한다.
 
-1. 준비 브랜치를 업로드해 정확한 커밋에서 Linux Python3.11/3.13 두 job을 실행한다.
-2. 두 job의 패키지 설치·전체 검증·대표 E2E가 성공했는지 확인한다. 실패/skip이면 원인을 수정하고 다시 검증한다.
-3. 승인된 diff와 결과를 바탕으로 main에 통합한다. main에서도 동일 CI가 성공해야 한다.
-4. README/이 기록의 미실행 상태를 실제 결과로 갱신하고, 별도 요청에 따라0.2.0 태그·릴리스 여부를 결정한다.
+1. PR의 최신 head와 base, 충돌 여부, Python3.11/3.13 checks가 모두 성공인지 다시 확인한다.
+2. 승인된 diff와 결과를 바탕으로 main에 통합한다. 현재 main은 여전히 v1 기준 커밋이다.
+3. 통합된 main에서도 동일 CI가 성공해야 한다. 이 결과는 병합 전에는 아직 없다.
+4. 승인 범위에 따라 검증된 main 커밋을 대상으로 v0.2.0 태그와 릴리스를 발행한다.
 
 현재 코드의 알려진 제약:
 
