@@ -8,11 +8,10 @@ SQLite 저널, Startup Recovery, Incident와 위험 통제, 제한된 FIX 4.4 �
 ## Quick Start
 
 Python 3.11+, macOS/Linux의 **현재 변경이 포함된 checkout**에서 실행합니다.
-이 문서의 기능은 [개발 브랜치 feat/oms-operational-evidence](https://github.com/Min9s/liquidation-aware-market-microstructure-research/tree/feat/oms-operational-evidence)에 있습니다.
-기존 main/v0.2.0의 기능 및 검증 기록과 구분합니다.
+이 문서는 현재 checkout의 기능을 설명합니다. 기존 v0.2.0 릴리스의 기능 및 검증 기록과 구분합니다.
 
 ```bash
-git clone --branch feat/oms-operational-evidence https://github.com/Min9s/liquidation-aware-market-microstructure-research.git
+git clone https://github.com/Min9s/liquidation-aware-market-microstructure-research.git
 cd liquidation-aware-market-microstructure-research
 python3 -m venv .venv
 source .venv/bin/activate
@@ -87,7 +86,8 @@ JSON 진단은 주문·명령·보고·Incident ID를 연결합니다. 타이머
 
 ## Testing & Operational Evidence
 
-현재 로컬 검증 결과는 **637 tests, skip 0 · 공개 예제 19개**입니다. 최신 변경의 원격 CI는 실행하지 않았습니다.
+현재 로컬 검증 결과는 **637 tests, skip 0 · 공개 예제 19개**입니다.
+[개발 브랜치 Linux CI](https://github.com/Min9s/liquidation-aware-market-microstructure-research/actions/runs/42443254307)에서도 Python 3.11·3.13의 전체 검증과 SIGKILL 데모가 통과했습니다.
 기존 v0.2.0의 589개/15개 결과 및 과거 성능 기록과 구분합니다.
 
 대표 데모: 주문10@100 → 4@99 체결 → 취소 중 3@100 추가 체결 → 잔여3 취소 응답 유실 →
