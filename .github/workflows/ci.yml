@@ -37,5 +37,5 @@ jobs:
           python -m pip install '.[dev,historical]'
       - name: Full tests, public examples, documentation and dependencies
         run: python scripts/verify_project.py
-      - name: Representative SIGKILL recovery and ledger reconciliation
-        run: python examples/durable_order_recovery.py --crash
+      - name: Startup safety, FIX fields and SIGKILL recovery
+        run: python examples/fix_order_recovery.py
