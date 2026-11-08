@@ -1,0 +1,161 @@
+{
+  "source_kind": "SYNTHETIC_TEST_ONLY",
+  "python": "3.13.15 | packaged by Anaconda, Inc. | (main, Aug 14 2026, 17:19:34) [Clang 20.1.8 ]",
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "sqlite": "3.53.4",
+  "commit": "885e86967ad4b6ee462ed1e02e48279be6eb1335",
+  "git_status": " M README.md\n?? scripts/benchmark_funded_journal.py\n",
+  "source_sha256": {
+    "execution_journal.py": "5fc8c0c4eb9fc2ebddc49d7da5951f7e90280fc5ebd14449b12eeb720b800bdd",
+    "execution_monitor.py": "682ecf857c7ffc5a1ec6dac160ef74dcad0d4ba28af0beef63cb9bb2fafd1864",
+    "execution.py": "94aae6ce90c9bf28062b827bd44471892fa6823468727c6f7c2676a17dcbe548",
+    "historical_io.py": "9bc06995e679533268f818be3b6b386d34c0a04a94bc0724a971d9ef4ec79000",
+    "order_reservations.py": "7432b13ad3ced8b22b550c5775b781f7ceeef8d27964ca53f2e4cee48935981e",
+    "event_study_io.py": "fda0ca23decf0cc9a6c2f328ef5d78b75f7004242c234f29734124ecc2e7fcdc",
+    "order_protocol.py": "bf8327ca729fff891d4f7f5c69efe90731a74b3e76f556b0e4c3e8ef4fd6bcd2",
+    "order_flow.py": "e90876a792749b5ddca35eea5ebfc57c894e91520cf358707b680a884b0c85f3",
+    "__init__.py": "e9049d4f1a7c2f1c8f5ef5af6ae01a490ebf8de06b88244c12a90fa837e7dc0c",
+    "execution_risk.py": "8b8bdaee6ff46767f902a90f55ac0e5f5e589d7948a067c32436ca3a67fbe1b5",
+    "event_study.py": "f7d208b04a65c7f0935b1ffc0526f5057e8012ad8ce27a797867e9e9b362cca7",
+    "historical.py": "f1ccb6336c1b645fe2b758e4196449d0c95699746284243b1af366c6b091c222",
+    "funded_orders.py": "6eaff0ac6f038dfe0d59232f3aad06bd04b22c5576bae829a557f021fc48227f",
+    "orderbook.py": "3ead9ca05ebf3da8f5278cd7ba9decdb2d731684a98283abd994da3c54960e79",
+    "gravity.py": "7bb08dd78eb40b3f75580520305e757add72eecd470dee0846df7781753a5956",
+    "simulated_venue.py": "3457313e15cf34db1f9b308cb72a609660f08fc3be1697558f5c9d8e38ade65b",
+    "order_lifecycle.py": "b751829843ca03485e2b8ff459ab5295dab2ed08ac0974cc917825b3b722315a",
+    "execution_ledger.py": "03e5f8cf7732d2a9d54f49739370a3de7c0469859f4e6c55ca86cb362121991c",
+    "funded_journal.py": "58a3c706f7e6bcd95144da2243976c241784558e25208b3bce27f1cc0ad3be81",
+    "execution_contracts.py": "8d0ea46a9240dcf0d1401552788af19b674eb8ec9aebcce27f79682979392290",
+    "asof.py": "dd96f2ad095d5dc706bda30f5727e2f3e4c5ead3d63dad8f67bed1afe1039ae7"
+  },
+  "settings": {
+    "journal_mode": "delete",
+    "synchronous": 2,
+    "busy_timeout": 5000,
+    "page_size": 4096
+  },
+  "repeats": 3,
+  "workload": "N rejected submits; then accepted submit; full-fill apply; close/open",
+  "timing": "perf_counter_ns wall time; seed/venue/close excluded; open includes verify; no warmup; local temporary filesystem",
+  "raw": [
+    {
+      "history": 10,
+      "repeat": 0,
+      "submit_ns": 3326334,
+      "apply_ns": 1566291,
+      "open_ns": 1176416
+    },
+    {
+      "history": 10,
+      "repeat": 1,
+      "submit_ns": 12346833,
+      "apply_ns": 3849583,
+      "open_ns": 983792
+    },
+    {
+      "history": 10,
+      "repeat": 2,
+      "submit_ns": 1149167,
+      "apply_ns": 1346500,
+      "open_ns": 1135791
+    },
+    {
+      "history": 50,
+      "repeat": 0,
+      "submit_ns": 3402834,
+      "apply_ns": 5188708,
+      "open_ns": 3374458
+    },
+    {
+      "history": 50,
+      "repeat": 1,
+      "submit_ns": 3826167,
+      "apply_ns": 20975000,
+      "open_ns": 3375041
+    },
+    {
+      "history": 50,
+      "repeat": 2,
+      "submit_ns": 3414334,
+      "apply_ns": 3646792,
+      "open_ns": 3387125
+    },
+    {
+      "history": 150,
+      "repeat": 0,
+      "submit_ns": 8995333,
+      "apply_ns": 9291250,
+      "open_ns": 9426250
+    },
+    {
+      "history": 150,
+      "repeat": 1,
+      "submit_ns": 8954292,
+      "apply_ns": 9183292,
+      "open_ns": 8845959
+    },
+    {
+      "history": 150,
+      "repeat": 2,
+      "submit_ns": 9370958,
+      "apply_ns": 9160417,
+      "open_ns": 8982125
+    }
+  ],
+  "summary": [
+    {
+      "history": 10,
+      "submit_ns": {
+        "median_ns": 3326334,
+        "min_ns": 1149167,
+        "max_ns": 12346833
+      },
+      "apply_ns": {
+        "median_ns": 1566291,
+        "min_ns": 1346500,
+        "max_ns": 3849583
+      },
+      "open_ns": {
+        "median_ns": 1135791,
+        "min_ns": 983792,
+        "max_ns": 1176416
+      }
+    },
+    {
+      "history": 50,
+      "submit_ns": {
+        "median_ns": 3414334,
+        "min_ns": 3402834,
+        "max_ns": 3826167
+      },
+      "apply_ns": {
+        "median_ns": 5188708,
+        "min_ns": 3646792,
+        "max_ns": 20975000
+      },
+      "open_ns": {
+        "median_ns": 3375041,
+        "min_ns": 3374458,
+        "max_ns": 3387125
+      }
+    },
+    {
+      "history": 150,
+      "submit_ns": {
+        "median_ns": 8995333,
+        "min_ns": 8954292,
+        "max_ns": 9370958
+      },
+      "apply_ns": {
+        "median_ns": 9183292,
+        "min_ns": 9160417,
+        "max_ns": 9291250
+      },
+      "open_ns": {
+        "median_ns": 8982125,
+        "min_ns": 8845959,
+        "max_ns": 9426250
+      }
+    }
+  ]
+}

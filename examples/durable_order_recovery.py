@@ -132,12 +132,14 @@ def _assert_ledger(recovery, expected):
              and balances["inventory"] == balances["available_inventory"], "Available balances differ")
 
 
-def run_crash_case():
+def run_crash_case(*, operational=False):
     """POSIX demo: venue stays in parent; only the journal client is SIGKILLed."""
     if os.name != "posix":
         raise RuntimeError("The forced-kill demo requires POSIX pipes and SIGKILL")
     instruments, policy, marks, order = _inputs()
     venue = SimulatedVenue(instruments)
+    decision_time = 10 if operational else 0
+    outages = []
     with TemporaryDirectory(prefix="synthetic-client-crash-") as directory:
         path = Path(directory) / "orders.sqlite"
         process = subprocess.Popen([sys.executable, "-u", "-B", "-c", _CLIENT_WORKER, str(path),
@@ -145,9 +147,9 @@ def run_crash_case():
                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                    text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
         try:
-            prepared = _request(process, "submit", command_id="submit-a", order=order, now_ns=0, marks=marks)
+            prepared = _request(process, "submit", command_id="submit-a", order=order, now_ns=decision_time, marks=marks)
             committed = _request(process, "recover")
-            duplicate = _request(process, "submit", command_id="submit-a", order=order, now_ns=0, marks=marks)
+            duplicate = _request(process, "submit", command_id="submit-a", order=order, now_ns=decision_time, marks=marks)
             _require(duplicate["outgoing"] is None, "Repeated command returned an outgoing order")
             absent = _request(process, "reconcile", command_id="query-absent", client_order_id="buy-a",
                               report=venue.query("buy-a"))
@@ -160,6 +162,20 @@ def run_crash_case():
             first_trade = venue.execute("buy-a", "3", "99")
             _request(process, "reconcile", command_id="query-fill", client_order_id="buy-a", report=venue.query("buy-a"))
             partial = _request(process, "recover")
+            if operational:
+                # age == TTL is valid; age == TTL+1 and absent marks block new exposure.
+                _require(prepared["result"]["accepted"], "TTL boundary must admit")
+                for label, outage_marks in (("stale_quote", marks), ("missing_quote", {})):
+                    probe = dict(order, client_order_id=label, quantity="1", limit_price="1")
+                    denied = _request(process, "submit", command_id=label, order=probe,
+                                      now_ns=11, marks=outage_marks)
+                    _require(not denied["result"]["accepted"] and
+                             denied["result"]["reason"] == "portfolio_mark_unavailable",
+                             "Quote outage failed to block new exposure")
+                    state = _request(process, "recover")
+                    _require(state["snapshot"]["account"] == partial["snapshot"]["account"],
+                             "Rejected exposure changed reservations")
+                    outages.append(dict(label=label, now_ns=11, reason=denied["result"]["reason"], recovery=state))
             cancel = _request(process, "request_cancel", command_id="cancel-a", client_order_id="buy-a")
             _require(cancel["outgoing"]["action"] == "cancel", "Cancel was not committed before dispatch")
             second_trade = venue.execute("buy-a", "2", "100")  # Fill beats the queued cancel.
@@ -183,7 +199,7 @@ def run_crash_case():
         with FundedJournal.open(path) as store:
             restart = store.recover()
             _require(restart == before_crash, "Restart changed committed state")
-            _require(store.submit("submit-a", order, now_ns=0, marks=marks)["outgoing"] is None,
+            _require(store.submit("submit-a", order, now_ns=decision_time, marks=marks)["outgoing"] is None,
                      "Restart reissued the original order")
             store.reconcile("query-terminal", "buy-a", venue.query("buy-a"))
             terminal = store.recover()["snapshot"]
@@ -209,7 +225,7 @@ def run_crash_case():
     return dict(source_kind=KIND, committed=committed, duplicate=duplicate, absent=absent, unknown=unknown,
                 partial=partial, before_crash=before_crash, restart=restart, final=final, recovered=recovered,
                 client_pid=process.pid, client_exit_code=process.returncode, venue_submissions=venue_submissions,
-                redelivery_unchanged=True, oracle=oracle, execution_ids_match=True)
+                redelivery_unchanged=True, oracle=oracle, execution_ids_match=True, outages=outages)
 
 
 def _print_phase(label, recovery):

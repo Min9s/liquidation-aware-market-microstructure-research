@@ -36,7 +36,7 @@ def _load(payload):
 
 def _definition_sha():
     names = ("funded_journal.py", "funded_orders.py", "order_reservations.py", "order_lifecycle.py",
-             "order_protocol.py", "execution_contracts.py", "execution_risk.py")
+             "order_protocol.py", "execution_contracts.py", "execution_risk.py", "oms_operations.py", "trading_session.py", "fix_adapter.py")
     definitions = {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
                    for name in names}
     return hashlib.sha256(_dump(definitions).encode()).hexdigest()
@@ -96,15 +96,19 @@ class FundedJournal:
     timers, exchange authentication or exactly-once network delivery is provided.
     """
 
+    _manager_type = FundedOrderManager
+    _reducer = staticmethod(_reduce)
+    _schema = SCHEMA
+
     def __init__(self, connection, metadata):
         self._connection = connection
         self._metadata = deepcopy(metadata)
 
     @classmethod
     def create(cls, path, instruments, policy, venue_id="synthetic-venue"):
-        manager = FundedOrderManager(instruments, policy, venue_id)
+        manager = cls._manager_type(instruments, policy, venue_id)
         initial = manager.export_log()
-        metadata = dict(source_kind=KIND, schema=SCHEMA, definition_sha256=_definition_sha(),
+        metadata = dict(source_kind=KIND, schema=cls._schema, definition_sha256=_definition_sha(),
                         initial=initial, initial_sha256=_initial_sha(initial))
         metadata = _load(_dump(metadata))
         path = Path(path).absolute()
@@ -153,11 +157,11 @@ class FundedJournal:
             raise ValueError("Funded journal metadata changed")
         metadata = self._metadata
         fields(metadata, "source_kind schema definition_sha256 initial initial_sha256")
-        if (metadata["source_kind"] != KIND or metadata["schema"] != SCHEMA
+        if (metadata["source_kind"] != KIND or metadata["schema"] != self._schema
                 or metadata["definition_sha256"] != _definition_sha()
                 or metadata["initial_sha256"] != _initial_sha(metadata["initial"])):
             raise ValueError("Funded journal schema or code definition changed")
-        manager = FundedOrderManager.replay(metadata["initial"])
+        manager = self._manager_type.replay(metadata["initial"])
         if manager.export_log()["events"]:
             raise ValueError("Initial journal must not contain prior events")
         records = self._connection.execute(
@@ -166,7 +170,7 @@ class FundedJournal:
             identity(command_id)
             if sequence != index:
                 raise ValueError("Funded journal command sequence is not contiguous")
-            actual = _reduce(manager, _load(request))
+            actual = self._reducer(manager, _load(request))
             if _dump(actual) != _dump(_load(result)):
                 raise ValueError("Stored command result differs from replay")
         rows = self._connection.execute("SELECT payload FROM snapshot WHERE id=1").fetchall()
@@ -219,7 +223,7 @@ class FundedJournal:
                                 result=_load(prior_result), outgoing=None)
             if request.get("action") == "submit" and len(records) >= protocol.MAX_EVENTS:
                 raise ValueError("Funded journal admission bound reached")
-            result = _reduce(manager, request)
+            result = self._reducer(manager, request)
             sequence = len(records) + 1
             self._connection.execute("INSERT INTO commands VALUES(?, ?, ?, ?)",
                                      (sequence, command_id, payload, _dump(result)))
