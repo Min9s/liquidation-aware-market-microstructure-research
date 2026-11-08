@@ -1,5 +1,18 @@
 # 코드를 직접 읽고 수정하기
 
+## 현재 OMS를 먼저 읽는 경우
+
+주문·자금·장애 복구를 보려면 [README의 흐름과 파일 안내](../README.md)를 먼저 읽으세요.
+[FIX 복구 데모](../examples/fix_order_recovery.py) → [주문 상태](../src/market_microstructure/order_lifecycle.py) →
+[자금 관리](../src/market_microstructure/funded_orders.py) → [SQLite 저장](../src/market_microstructure/funded_journal.py) →
+[FIX·복구 테스트](../tests/test_fix_adapter.py) 순서가 적합합니다.
+실행 소유권과 시작 시 복구는 [TradingSession](../src/market_microstructure/trading_session.py),
+설계상의 한계와 내부 API 결합은 [감사 문서](ENGINEERING_AUDIT.md)를 참고하세요.
+
+아래는 기존 시장미시구조·IOC 코드의 학습 과정입니다. 현금 OMS와 별도 경로이며, 기존 내용과 연습을 보존합니다.
+
+## 기존 연구 코드 학습
+
 프로젝트 이름은 Liquidation-Aware Market Microstructure Research이며 Python 패키지는
 `market_microstructure`입니다. 먼저 `python examples/research_walkthrough.py`로
 SYNTHETIC 전체 흐름을 확인한 뒤 아래 순서로 코드를 읽어 보세요.

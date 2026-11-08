@@ -1,14 +1,51 @@
-# Synthetic OMS — Recovery, Reconciliation & FIX Business Fields
+# Order Management System (OMS) Simulator
 
-주문 응답 유실·취소와 체결 경합·프로세스 종료가 발생해도 **주문 사실과 현금·예약·보유 수량이 일치하는지 검증하는 Python OMS 시뮬레이터**입니다.
-SQLite 저널, Startup Recovery, Incident와 위험 통제, 제한된 FIX 4.4 필드 어댑터를 구현했습니다.
-부모의 모의 거래소를 유지한 채 클라이언트를 SIGKILL하고 독립 원장으로 복구 결과를 검산합니다.
-실제 거래소 연결이나 상용 OMS 운영 성능을 주장하지 않습니다.
+주문 취소 중 체결이 발생하거나 프로그램이 종료되면, 내부 주문 상태와 실제 처리 결과가 달라질 수 있습니다.
+이 프로젝트는 **주문 상태와 현금·보유 수량을 일관되게 관리하고, 장애 후 모의 거래소와 비교해 복구하는 Python OMS 시뮬레이터**입니다.
+주문·체결·취소 처리, 자금 예약, SQLite 저장, 제한된 FIX 4.4 업무 필드 변환을 구현했습니다.
+실제 거래소 연결과 상용 운영 성능은 검증 범위에 포함하지 않습니다.
 
-## Quick Start
+## 주요 구현
 
-Python 3.11+, macOS/Linux의 **현재 변경이 포함된 checkout**에서 실행합니다.
-이 문서는 현재 checkout의 기능을 설명합니다. 기존 v0.2.0 릴리스의 기능 및 검증 기록과 구분합니다.
+| 해결할 문제 | 구현한 처리 |
+|---|---|
+| 주문 중복·상태 혼동 | 신규·부분 체결·완전 체결·취소·거부 상태 관리, 보고 ID와 체결 ID 검증 |
+| 같은 자금으로 여러 주문 | 매수 현금·매도 재고 예약, 사용 가능 잔고·시세 유효 시간·노출 한도 검사 |
+| 취소 요청 중 추가 체결 | 취소 요청과 완료를 분리하고, 추가 체결을 반영한 뒤 확인된 잔여 예약만 해제 |
+| 중복·역순 체결 보고 | 같은 체결의 중복 회계 반영 방지, 기존 사실과 충돌하는 보고는 상태 변경 없이 거부 |
+| 장애·응답 유실 | 명령·결과·상태를 SQLite에 함께 저장하고, 재시작 시 전체 이력을 재생해 검산 |
+| 거래소와 내부 상태 차이 | 모의 거래소 조회와 비교하는 대사(reconciliation), 미해결 사건 추적·신규 위험 제한 |
+
+## 정상 처리와 장애 복구
+
+```mermaid
+flowchart LR
+    subgraph normal["정상 처리: 초기 복구 확인 후 NORMAL"]
+        direction TB
+        A["TradingSession<br/>주문 요청"] --> B["잔고·예약·위험 한도 확인"]
+        B --> C["SQLite에 승인·예약 COMMIT"]
+        C --> D["반환된 주문을 모의 거래소로 전달"]
+        D --> E["체결·취소 보고 수신 / FIX 필드 검증"]
+        E --> F["주문 상태·현금·보유 수량을 함께 저장"]
+    end
+    subgraph recovery["장애 복구: 정상 종료 후 재시작도 동일"]
+        direction TB
+        G["종료·응답 유실 후<br/>재시작"] --> H["RECOVERY<br/>이력 재생·저장 상태 비교"]
+        H --> I["모의 거래소 새 조회·누락 체결 확인"]
+        I --> J["미해결 사건 해소<br/>모든 등록 주문 일치 확인"]
+        J --> K["NORMAL 복귀"]
+    end
+    normal ~~~ recovery
+```
+
+취소 요청은 주문 종료가 아닙니다. 미응답·조회 부재만으로 주문을 실패 처리하거나 예약을 풀지 않습니다.
+`RECOVERY`·`RESTRICTED`에서는 신규 매수를 제한하고, 기존 보고 반영·가능한 취소·조회·보유 재고 내 매도는 허용합니다.
+자동 재전송·타이머·외부 알림 전송은 제공하지 않습니다.
+
+## 설치와 실행
+
+Python **3.11+**, macOS/Linux가 필요합니다. 계산 코어는 표준 라이브러리를 사용하며, 전체 검증에는 pytest와 PyArrow가 필요합니다.
+API Key·계좌·시장 데이터 없이 아래 명령을 실행할 수 있습니다.
 
 ```bash
 git clone https://github.com/Min9s/liquidation-aware-market-microstructure-research.git
@@ -20,121 +57,67 @@ python examples/fix_order_recovery.py
 python scripts/verify_project.py
 ```
 
-대표 데모는 생성한 자식만 SIGKILL하고 임시 DB를 정리합니다. API 키·계좌·외부 주문 전송은 없습니다.
-입력은 `SYNTHETIC_TEST_ONLY`, 가격/체결은 수동 지정, 수수료는 0입니다. 난수 없이 결정론적으로 실행합니다.
-UUID/PID는 실행별 진단 값이며 회계 결과에는 영향을 주지 않습니다.
+대표 데모는 초기 현금 1,000에서 `10@100` 매수 주문 → `4@99` 체결 → 취소 요청 중 `3@100` 추가 체결 → 잔여 3 취소 응답 유실 → 클라이언트 SIGKILL → 복구·대사를 실행합니다.
+최종 **현금 304 / 보유 7 / 체결 7 / 취소 3 / 예약 0**을 독립 Decimal 계산과 비교합니다.
+직접 생성한 자식 프로세스만 종료하며 임시 DB를 정리합니다. 수동 체결·수수료 0의 결정론적 합성 시나리오입니다.
 
-## Core Features
+## 검증 결과와 보장 범위
 
-- 공유 현금/보유 수량 예약과 신규 위험 승인, 시세 TTL·노출 한도 검사
-- 취소 요청과 종료 상태 분리, 부분 체결·취소 경합, 중복/역순 보고 검증
-- 명령·결과·스냅샷 원자적 저장, 전체 재생 검산과 재시작 후 대사
-- 영속 Incident, NORMAL/RESTRICTED/RECOVERY, 주문별 구조화된 진단
-- 협력 POSIX 프로세스용 단일 소유 실행 API와 매 시작의 새로운 조회 검증
-- FIX 태그/값 객체의 원주문·체결·취소 변환과 누락 Trade 영속 보류
+전체 검증 스크립트는 **637개 테스트(skip 0), 공개 예제 19개, 로컬 문서 파일 링크, 설치 의존성**을 확인합니다.
+테스트만 실행하려면 `python -m pytest -q`를 사용합니다.
 
-## System Architecture
+| 검증 | 확인하는 내용 |
+|---|---|
+| 보고 순서 24개 × 재시작 경계 5개 | 중복·역순 전달과 재시작 후 동일한 최종 주문·회계 상태 |
+| 커밋 전후 강제 종료·실제 SIGKILL | 명령·체결·예약 상태의 부분 저장 방지와 복구 |
+| 매 단계 독립 회계 검산 | 현금 = 사용 가능 현금 + 예약 현금, 체결 합계와 보유 수량 일치 |
+| 새 조회·누락 체결·잘못된 필드 | 미해결 상태에서 정상 복귀 차단, 충돌 사실의 무변경 거부 |
+| 실행 소유권 | 협력 POSIX API를 쓰는 두 번째 실행 프로세스 배제 |
 
-```mermaid
-flowchart LR
-    S["TradingSession: 소유권·Startup Recovery"] --> J["FixJournal / OperationalJournal"]
-    J --> T["SQLite: 명령·결과·스냅샷 COMMIT"]
-    J --> F["FundedOrderManager: 승인·예약·회계"]
-    F --> O["OrderManager: 주문·취소·체결 사실"]
-    J --> A["FIX 필드 변환"]
-    A --> V["SyntheticFixVenue: 수동 체결·archive"]
-    V --> A
-    A --> J
+이는 테스트한 합성 입력·로컬 SQLite·지원 API 범위의 검증입니다.
+[회계 불변식·설계 감사](docs/ENGINEERING_AUDIT.md), [실행 근거](docs/OPERATIONAL_EVIDENCE.md),
+[기존 Linux CI 실행 기록](https://github.com/Min9s/liquidation-aware-market-microstructure-research/actions/runs/42443254307)을 확인할 수 있습니다.
+과거 v0.2.0의 589개 테스트·15개 예제 기록과 현재 결과는 구분합니다.
+
+## 파일 구조와 코드 읽기 순서
+
+```text
+src/market_microstructure/
+  trading_session.py      # 지원 실행 진입점·프로세스 소유권·시작 시 복구
+  order_lifecycle.py      # 주문·취소 상태와 중복·역순 보고
+  funded_orders.py        # 주문 승인·자금 및 재고 관리
+  order_reservations.py   # 예약·잔고·위험 한도 계산
+  funded_journal.py       # SQLite 원자적 저장·전체 이력 재생
+  oms_operations.py       # 대사·Incident·운영 모드
+  fix_adapter.py          # FIX 업무 필드 변환·검증·누락 체결 보류
+  synthetic_fix.py        # 수동 체결을 제공하는 모의 거래소
+examples/                 # 대표 복구 데모와 기능별 실행 예제
+tests/                    # 회계·경합·장애·복구·입력 검증
+scripts/                  # 전체 검증·벤치마크
+benchmarks/               # 조건·환경·원시 측정값
+docs/                     # 기능 계약·설계·학습 문서
 ```
 
-지원 실행 진입점은 `TradingSession.create/open(journal_type=FixJournal)`입니다.
-저널 클래스는 저수준 저장소 API이며 직접 쓰면 실행 소유권 보호를 우회합니다.
-`_record`, `_verify`, reducer와 내부 dict는 안정적인 외부 확장 인터페이스가 아닙니다.
-연구 LGI·v1 파생계약 IOC·v2 현금 OMS는 독립 경로이며 회계를 합치거나 전략 신호로 연결하지 않았습니다.
+**추천 순서:** [대표 데모](examples/fix_order_recovery.py) → [주문 상태](src/market_microstructure/order_lifecycle.py) → [자금 관리](src/market_microstructure/funded_orders.py) → [저장](src/market_microstructure/funded_journal.py) → [FIX·복구 테스트](tests/test_fix_adapter.py).
+지원 진입점은 `TradingSession.create/open(journal_type=FixJournal)`입니다. 저수준 journal 직접 호출은 실행 소유권 보호를 우회하며, `_record`·`_verify`와 내부 dict는 안정적인 확장 API가 아닙니다.
 
-## Order Lifecycle
+기존 시장미시구조 연구·파생계약 IOC 예제도 같은 저장소에 보존되어 있습니다. 현금 OMS와 독립된 경로이며 전략 신호나 회계를 연결하지 않았습니다.
+[학습 안내](docs/LEARNING.md)에서 현재 OMS와 기존 연구 코드의 읽기 경로를 구분합니다.
 
-`pending_new/unknown → open → partially_filled → filled 또는 canceled`이며 신규 거부는 `rejected`입니다.
-취소 요청은 별도의 `cancel_status=pending`으로 남아 추가 체결을 허용합니다.
-보고 ID·Execution ID·revision을 구별하고 상충하는 체결 사실은 무변경 거부합니다.
-시세 장애가 기존 체결 반영과 주문 정리를 막지 않습니다.
-[상태 계약](docs/ORDER_LIFECYCLE.md) · [회계 계약](docs/ORDER_FUNDING.md)
+## FIX 범위와 한계
 
-## Durability & Recovery
+- FIX 4.4 **태그/값 객체**의 신규 주문(35=D), 체결 보고(35=8), 취소 요청(35=F), 종료 주문의 제한된 취소 거부(35=9), 명시적 상태 조회를 지원합니다. 주문 정정(35=G)은 제외합니다.
+- ExecType과 OrdStatus를 구분하고 CumQty·LeavesQty·AvgPx·Trade ExecID를 검산합니다. 누락 체결을 평균가격으로 만들어내지 않습니다.
+- FIX wire protocol·Logon·Heartbeat·sequence·Resend/Gap Fill·socket 재접속은 없습니다. Python fixture archive 재전달은 FIX Resend가 아닙니다.
+- 단일 통화·수수료 0·차입 및 공매도 금지의 현금 계정입니다. 체결 정정과 실제 계좌 전체 대사는 미구현입니다.
+- 소유권 보호는 협력 POSIX 프로세스·로컬 경로에 한정됩니다. 직접 DB 쓰기·분산 fencing·Windows/NFS는 보장하지 않습니다.
+- 코드 해시가 바뀐 DB는 거부합니다. 자동 이관·로그 회전·전원 손실·대규모 운영은 미검증입니다.
+- 전체 이력 재검산 비용은 이력과 함께 증가합니다. [조건별 벤치마크·원시값](docs/ENGINEERING_AUDIT.md)에 로컬 측정과 한계를 보존했으며 실거래 latency·throughput·HFT 성능으로 해석하지 않습니다.
 
-승인·예약을 커밋한 뒤 outgoing을 반환합니다. 재호출은 원래 주문을 재발송하지 않습니다.
-SQLite는 FULL synchronous이며 매 명령 전체 이력과 저장 스냅샷을 비교합니다.
-미응답/조회 부재만으로 주문을 실패 확정하거나 예약을 풀지 않습니다.
-정상 close도 미수신 거래소 사실이 없음을 증명하지 못하므로 TradingSession은 항상 RECOVERY에서 시작합니다.
-[저장 계약](docs/DURABLE_ORDERS.md) · [Startup 설계](docs/FIX_ADAPTER.md)
+## 상세 문서
 
-## FIX 4.4 Business-Field Adapter
+[주문 상태](docs/ORDER_LIFECYCLE.md) · [회계](docs/ORDER_FUNDING.md) · [저장·복구](docs/DURABLE_ORDERS.md) ·
+[FIX 필드 계약](docs/FIX_ADAPTER.md) · [운영·대사](docs/OMS_OPERATIONS.md) · [영문 소개·면접](docs/PORTFOLIO_INTERVIEW.md) ·
+[기존 연구](docs/RESEARCH.md) · [IOC 사례](docs/CASE_STUDY.md) · [출처·AI 보조 사용](PROVENANCE.md)
 
-35=D/8/F, 종료 주문의 제한된 35=9, 명시적 상태 조회를 지원하며 35=G는 제외합니다.
-ExecType은 이벤트 종류, OrdStatus는 현재 상태로 구분합니다.
-CumQty/LeavesQty/AvgPx와 실제 Trade ExecID를 검산하며 누락 체결을 평균 가격으로 만들어내지 않습니다.
-**바이트 wire protocol과 FIX 세션 엔진은 없습니다.** 재전달은 Python fixture archive이며 FIX Resend가 아닙니다.
-[지원 필드·프로파일·한계](docs/FIX_ADAPTER.md)
-
-## Reconciliation & Risk Controls
-
-기한을 넘긴 조회 부재/상태 차이와 사실 충돌은 영속 Incident로 추적합니다.
-RESTRICTED/RECOVERY에서 신규 매수를 막고 기존 보고·가능한 취소·조회·보유 재고 내 매도는 허용합니다.
-NORMAL 복귀에는 미해결 사건이 없고 누락 Trade가 해결됐으며 모든 등록 주문의 새 일치 조회가 필요합니다.
-JSON 진단은 주문·명령·보고·Incident ID를 연결합니다. 타이머와 외부 알림 전송은 호출자/미구현 범위입니다.
-[운영 절차](docs/OMS_OPERATIONS.md)
-
-## Testing & Operational Evidence
-
-현재 로컬 검증 결과는 **637 tests, skip 0 · 공개 예제 19개**입니다.
-[개발 브랜치 Linux CI](https://github.com/Min9s/liquidation-aware-market-microstructure-research/actions/runs/42443254307)에서도 Python 3.11·3.13의 전체 검증과 SIGKILL 데모가 통과했습니다.
-기존 v0.2.0의 589개/15개 결과 및 과거 성능 기록과 구분합니다.
-
-대표 데모: 주문10@100 → 4@99 체결 → 취소 중 3@100 추가 체결 → 잔여3 취소 응답 유실 →
-SIGKILL → Startup RECOVERY → 누락 사실 Incident → 역순/중복 재전달 → 새 조회 → NORMAL.
-최종 **현금304·보유7·체결7·취소3·예약0**을 독립 Decimal 계산으로 비교하며 불일치하면 실패합니다.
-
-검증은 24개 보고 순서/5개 재시작 경계, 커밋 전후 실제 프로세스 종료, 두 번째 실행 프로세스 배제,
-시세 경계, 잘못된 필드/ID, 누락 이력, 고정 시드의 매 단계 회계 검산을 포함합니다.
-[최종 감사·심각도·불변식](docs/ENGINEERING_AUDIT.md) · [전체 실행 기록](docs/OPERATIONAL_EVIDENCE.md)
-
-## Benchmark Results
-
-현재 전체 구현을 조건별 새 DB 20개로 측정했습니다. 아래는 로컬 p50(ms)입니다.
-
-| 선행 이력 / 활성 / 주문당 체결 / 중복명령 | 신규 저장 | 보고 반영 | Startup |
-|---|---:|---:|---:|
-| 10 / 1 / 1 / 0 | 1.592 | 1.766 | 7.104 |
-| 50 / 1 / 1 / 0 | 9.159 | 9.258 | 30.642 |
-| 150 / 1 / 1 / 0 | 49.512 | 49.303 | 152.671 |
-| 50 / 5 / 1 / 0 | 17.051 | 16.840 | 54.800 |
-| 50 / 1 / 3 / 0 | 15.059 | 14.806 | 48.558 |
-| 50 / 1 / 1 / 20 | 17.850 | 17.712 | 58.601 |
-
-전체 검산이 주요 비용이며 후보 로그 복사/FIX prefix 재검산 때문에 단순 선형 비용으로 단정하지 않습니다.
-메모리 상태 전이·FIX 변환·대사·Incident·전체 검산도 별도 측정했습니다.
-표본 분산·p95·구간·환경·원시값은 [감사 문서](docs/ENGINEERING_AUDIT.md)에 있습니다.
-p99는 표본 부족으로 생략했습니다. 과거 약9ms를 현재 성능으로 재사용하지 않았습니다.
-실거래 latency/throughput이나 HFT 성능이 아니며 CI 시간 합격선은 없습니다.
-
-```bash
-python scripts/benchmark_audit.py --output /tmp/oms-audit.json
-```
-
-## Known Limitations
-
-- 실제 거래소 연동/실제 계좌 전체 대사 검증이 아닙니다. Synthetic Venue에 한정됩니다.
-- FIX wire·Logon·Heartbeat·sequence·Resend/Gap Fill·실제 socket 재접속은 없습니다.
-- 현금 OMS는 단일 통화·수수료0·무차입/공매도 금지이며 체결 정정은 없습니다.
-- POSIX 락은 협력 API·로컬 파일 경로 범위입니다. 직접 DB 쓰기·파일 교체·분산 fencing·Windows/NFS를 보장하지 않습니다.
-- 코드 해시가 바뀐 DB는 거부하며 자동 이관·로그 회전·전원 손실·대규모 운영은 미검증입니다.
-- 전체 재생과 누적 증거 저장 비용이 증가합니다. 실제 거래 환경 latency/throughput은 측정하지 않았습니다.
-- 타입 힌트/정적 검사와 내부 API 결합에 개선 여지가 있습니다. Critical 오류 부재를 증명한 것은 아닙니다.
-
-## Further Reading
-
-[이력서·영어 소개·면접 답변](docs/PORTFOLIO_INTERVIEW.md) · [학습 안내](docs/LEARNING.md) ·
-[연구 계약](docs/RESEARCH.md) · [기존 IOC 사례](docs/CASE_STUDY.md) · [출처](PROVENANCE.md)
-
-계산 코어는 표준 라이브러리만 사용합니다. 전체 회귀에는 pytest와 Parquet용 PyArrow를 설치합니다.
-비공개 Liquidation Gravity 원본 데이터·결과는 배포하지 않습니다. AI 보조 사용은 PROVENANCE에 명시했으며 LICENSE 파일은 없습니다.
+비공개 원본 데이터·결과는 배포하지 않습니다. 현재 LICENSE 파일은 없으며 공개 소스 포트폴리오입니다.

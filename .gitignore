@@ -35,3 +35,7 @@ dist/
 .envrc
 credentials*
 secrets*
+
+# Generated documents: share the local exclude rules with other clones.
+/output/
+/tmp/pdfs/
