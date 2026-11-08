@@ -3,7 +3,7 @@
 상태: **사용자가 PR #1 main 병합과 v0.2.0 GitHub Release 발행을 승인했다. 발행 조건은 병합된 main의 CI 성공이다.**
 검토일은 2026-11-05다. 기능 브랜치와 PR에서 실제 Linux CI를 확인한 뒤 릴리스 승인을 받았다.
 이 문서는 병합 전 검토·승인을 기록한다. 최종 main 커밋과 main CI 실행 링크, 발행 상태는
-[v0.2.0 릴리스](https://github.com/Min9s/liquidation-aware-market-microstructure-research/releases/tag/v0.2.0) 설명에 기록한다.
+[v0.2.0 릴리스](https://github.com/Min9s/order-management-system-simulator/releases/tag/v0.2.0) 설명에 기록한다.
 PR의 base는 `fb7afec7909d07cdc41d9a3f899361c982e06f0d`이고 준비 브랜치는 `feat/simulated-order-lifecycle`이다.
 패키지 버전은0.2.0이다. 태그는 성공한 main CI의 정확한 커밋을 가리켜야 한다.
 
@@ -80,10 +80,10 @@ checkout/setup-python은 확인한 공식 v6 commit SHA에 고정하고 저장�
 구성 근거는 [GitHub Python CI 문서](https://docs.github.com/en/actions/tutorials/build-and-test-code/python),
 [setup-python matrix 설명](https://github.com/actions/setup-python/blob/main/docs/advanced-usage.md)이다.
 첫 원격 검증의 head는 `399bb6477dd2b38ed8a23d500556aa58700ef473`이다.
-[브랜치 push 실행](https://github.com/Min9s/liquidation-aware-market-microstructure-research/actions/runs/41977695758)과
-[PR 실행](https://github.com/Min9s/liquidation-aware-market-microstructure-research/actions/runs/41977752392)의 두 Python job이 모두 성공했다.
+[브랜치 push 실행](https://github.com/Min9s/order-management-system-simulator/actions/runs/41977695758)과
+[PR 실행](https://github.com/Min9s/order-management-system-simulator/actions/runs/41977752392)의 두 Python job이 모두 성공했다.
 각 job의 전체 검증과 별도 대표 E2E step도 success이며, CI 실패에 따른 코드 수정은 없었다.
-후속 문서 갱신 커밋의 상태는 [PR #1의 현재 HEAD checks](https://github.com/Min9s/liquidation-aware-market-microstructure-research/pull/1)에서 확인한다.
+후속 문서 갱신 커밋의 상태는 [PR #1의 현재 HEAD checks](https://github.com/Min9s/order-management-system-simulator/pull/1)에서 확인한다.
 
 ## 승인된 릴리스 절차
 
