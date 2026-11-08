@@ -1,11 +1,26 @@
-# Order Management System (OMS) Simulator
+# OMS Simulator
 
-주문 취소 중 체결이 발생하거나 프로그램이 종료되면, 내부 주문 상태와 실제 처리 결과가 달라질 수 있습니다.
-이 프로젝트는 **주문 상태와 현금·보유 수량을 일관되게 관리하고, 장애 후 모의 거래소와 비교해 복구하는 Python OMS 시뮬레이터**입니다.
-주문·체결·취소 처리, 자금 예약, SQLite 저장, 제한된 FIX 4.4 업무 필드 변환을 구현했습니다.
-실제 거래소 연결과 상용 운영 성능은 검증 범위에 포함하지 않습니다.
+주문 상태와 자금을 관리하고, 취소·체결 경합과 장애 후에도 모의 거래소와 일치하는지 검증하는 Python OMS입니다.
 
-## 주요 구현
+`Python 3.11+` · `SQLite` · `FIX 4.4 필드` · `pytest`
+
+[빠른 실행](#빠른-실행) · [검증 결과](#검증-결과) · [코드 안내](#코드-안내) · [구현 범위](#구현-범위)
+
+```mermaid
+flowchart TB
+    A["OMS<br/>주문·자금 관리"] --> B["SQLite<br/>명령·예약 기록"]
+    B --> C["모의 거래소<br/>체결·취소"]
+    C -->|보고·조회| A
+```
+
+- **취소 중 추가 체결**: 취소 요청과 완료를 구분하고 잔여 예약을 관리합니다.
+- **중복·역순 보고**: 같은 체결을 두 번 반영하지 않고, 충돌하는 사실은 거부합니다.
+- **장애 후 복구**: 저장 이력을 재생하고 새 거래소 조회로 주문·현금·보유 수량을 검산합니다.
+
+**637개 테스트 · 19개 실행 예제**로 검증한 합성 시뮬레이터입니다. 실제 거래소 연결·상용 운영 성능은 검증하지 않았습니다.
+
+<details>
+<summary>주문 상태·자금·대사 구현 상세</summary>
 
 | 해결할 문제 | 구현한 처리 |
 |---|---|
@@ -16,7 +31,10 @@
 | 장애·응답 유실 | 명령·결과·상태를 SQLite에 함께 저장하고, 재시작 시 전체 이력을 재생해 검산 |
 | 거래소와 내부 상태 차이 | 모의 거래소 조회와 비교하는 대사(reconciliation), 미해결 사건 추적·신규 위험 제한 |
 
-## 정상 처리와 장애 복구
+</details>
+
+<details>
+<summary>정상 처리와 장애 복구 흐름</summary>
 
 ```mermaid
 flowchart LR
@@ -42,7 +60,9 @@ flowchart LR
 `RECOVERY`·`RESTRICTED`에서는 신규 매수를 제한하고, 기존 보고 반영·가능한 취소·조회·보유 재고 내 매도는 허용합니다.
 자동 재전송·타이머·외부 알림 전송은 제공하지 않습니다.
 
-## 설치와 실행
+</details>
+
+## 빠른 실행
 
 Python **3.11+**, macOS/Linux가 필요합니다. 계산 코어는 표준 라이브러리를 사용하며, 전체 검증에는 pytest와 PyArrow가 필요합니다.
 API Key·계좌·시장 데이터 없이 아래 명령을 실행할 수 있습니다.
@@ -61,7 +81,7 @@ python scripts/verify_project.py
 최종 **현금 304 / 보유 7 / 체결 7 / 취소 3 / 예약 0**을 독립 Decimal 계산과 비교합니다.
 직접 생성한 자식 프로세스만 종료하며 임시 DB를 정리합니다. 수동 체결·수수료 0의 결정론적 합성 시나리오입니다.
 
-## 검증 결과와 보장 범위
+## 검증 결과
 
 전체 검증 스크립트는 **637개 테스트(skip 0), 공개 예제 19개, 로컬 문서 파일 링크, 설치 의존성**을 확인합니다.
 테스트만 실행하려면 `python -m pytest -q`를 사용합니다.
@@ -79,7 +99,16 @@ python scripts/verify_project.py
 [기존 Linux CI 실행 기록](https://github.com/Min9s/liquidation-aware-market-microstructure-research/actions/runs/42443254307)을 확인할 수 있습니다.
 과거 v0.2.0의 589개 테스트·15개 예제 기록과 현재 결과는 구분합니다.
 
-## 파일 구조와 코드 읽기 순서
+## 코드 안내
+
+**추천 순서:** [대표 데모](examples/fix_order_recovery.py) → [주문 상태](src/market_microstructure/order_lifecycle.py) → [자금 관리](src/market_microstructure/funded_orders.py) → [저장](src/market_microstructure/funded_journal.py) → [FIX·복구 테스트](tests/test_fix_adapter.py).
+지원 진입점은 `TradingSession.create/open(journal_type=FixJournal)`입니다. 저수준 journal 직접 호출은 실행 소유권 보호를 우회하며, `_record`·`_verify`와 내부 dict는 안정적인 확장 API가 아닙니다.
+
+기존 시장미시구조 연구·파생계약 IOC 예제도 같은 저장소에 보존되어 있습니다. 현금 OMS와 독립된 경로이며 전략 신호나 회계를 연결하지 않았습니다.
+[학습 안내](docs/LEARNING.md)에서 현재 OMS와 기존 연구 코드의 읽기 경로를 구분합니다.
+
+<details>
+<summary>주요 파일과 역할 펼쳐보기</summary>
 
 ```text
 src/market_microstructure/
@@ -98,13 +127,14 @@ benchmarks/               # 조건·환경·원시 측정값
 docs/                     # 기능 계약·설계·학습 문서
 ```
 
-**추천 순서:** [대표 데모](examples/fix_order_recovery.py) → [주문 상태](src/market_microstructure/order_lifecycle.py) → [자금 관리](src/market_microstructure/funded_orders.py) → [저장](src/market_microstructure/funded_journal.py) → [FIX·복구 테스트](tests/test_fix_adapter.py).
-지원 진입점은 `TradingSession.create/open(journal_type=FixJournal)`입니다. 저수준 journal 직접 호출은 실행 소유권 보호를 우회하며, `_record`·`_verify`와 내부 dict는 안정적인 확장 API가 아닙니다.
+</details>
 
-기존 시장미시구조 연구·파생계약 IOC 예제도 같은 저장소에 보존되어 있습니다. 현금 OMS와 독립된 경로이며 전략 신호나 회계를 연결하지 않았습니다.
-[학습 안내](docs/LEARNING.md)에서 현재 OMS와 기존 연구 코드의 읽기 경로를 구분합니다.
+## 구현 범위
 
-## FIX 범위와 한계
+FIX 4.4 **업무 필드 변환**을 구현했습니다. FIX 세션 엔진·실계좌 운영은 포함하지 않습니다.
+
+<details>
+<summary>FIX 지원 필드와 운영 한계</summary>
 
 - FIX 4.4 **태그/값 객체**의 신규 주문(35=D), 체결 보고(35=8), 취소 요청(35=F), 종료 주문의 제한된 취소 거부(35=9), 명시적 상태 조회를 지원합니다. 주문 정정(35=G)은 제외합니다.
 - ExecType과 OrdStatus를 구분하고 CumQty·LeavesQty·AvgPx·Trade ExecID를 검산합니다. 누락 체결을 평균가격으로 만들어내지 않습니다.
@@ -113,6 +143,8 @@ docs/                     # 기능 계약·설계·학습 문서
 - 소유권 보호는 협력 POSIX 프로세스·로컬 경로에 한정됩니다. 직접 DB 쓰기·분산 fencing·Windows/NFS는 보장하지 않습니다.
 - 코드 해시가 바뀐 DB는 거부합니다. 자동 이관·로그 회전·전원 손실·대규모 운영은 미검증입니다.
 - 전체 이력 재검산 비용은 이력과 함께 증가합니다. [조건별 벤치마크·원시값](docs/ENGINEERING_AUDIT.md)에 로컬 측정과 한계를 보존했으며 실거래 latency·throughput·HFT 성능으로 해석하지 않습니다.
+
+</details>
 
 ## 상세 문서
 
