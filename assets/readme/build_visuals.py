@@ -70,21 +70,23 @@ def recovery():
     cash_before=initial-first*Decimal('99');reserve_before=(Decimal('10')-first)*limit
     final_cash=cash_before-second*limit;final_filled=first+second;final_canceled=Decimal('10')-final_filled
     assert (cash_before,reserve_before,final_cash,final_filled,final_canceled)==tuple(map(Decimal,['604','600','304','7','3']))
-    r=canvas(640,'취소·체결 경합, 보고 유실, 재시작과 대사 후 회계 검산')
+    r=canvas(800,'보고 유실로 벌어진 로컬·거래소 상태를 대사로 복구')
+    text(r,28,40,'하나의 주문, 서로 다른 두 상태',28,INK,'600')
+    text(r,28,77,'10개 매수 · 지정가 100 · 초기 현금 1,000',21,MUTED)
+    text(r,28,130,'OMS / 저장된 상태',23,BLUE,'600')
+    text(r,360,130,'거래소 / 실제 발생',23,BLUE,'600')
     stages=[
-      ('01','10 @ 100 주문 승인','현금 1,000  ·  예약 1,000  ·  체결 0','주문 전달 전에 자금 예약을 저장'),
-      ('02','4 @ 99 부분 체결 후 취소 요청','현금 604  ·  예약 600  ·  체결 4','취소 요청은 완료가 아니므로 예약 유지'),
-      ('03','추가 체결·취소 보고 유실 → SIGKILL','로컬 체결 4  ≠  거래소 체결 7','거래소: 3 @ 100 추가 체결, 잔여 3 취소'),
-      ('04','재시작: RECOVERY','현금 604  ·  예약 600  ·  로컬 체결 4','저장 상태 복구 후에도 새 조회·누락 보고 필요'),
-      ('05','보고 재전달·새 조회 일치 → NORMAL','현금 304  ·  예약 0  ·  보유 7','체결 7 + 취소 3 = 주문 10  ·  상태 canceled')]
-    el(r,'line',x1=30,y1=35,x2=30,y2=515,stroke=LINE,stroke_width=2)
-    for i,(n,title,value,note) in enumerate(stages):
-        y=35+i*120
-        color=BLUE if i!=2 else '#94612D'
-        el(r,'circle',cx=30,cy=y,r=6,fill=color)
-        text(r,58,y+7,title,24,color,'600')
-        text(r,58,y+48,value,26,INK,'600')
-        text(r,58,y+82,note,21,MUTED)
+      ('정상 처리','4개 체결 · 현금 604','4개 체결 확인','예약 600 유지','취소 요청 접수'),
+      ('보고 유실','체결 4개에 머무름','3개 추가 체결','예약 600 유지','잔여 3개 취소'),
+      ('SIGKILL → 재시작','RECOVERY · 체결 4','최종 체결 7','저장 상태만 복원','재시작과 무관하게 유지'),
+      ('누락 보고 재전달 + 새 조회','현금 304 · 예약 0','체결 7 · 취소 3','보유 7 · canceled','로컬과 일치 확인')]
+    for i,(label,a,b,c,d) in enumerate(stages):
+        y=165+i*140
+        el(r,'rect',x=16,y=y,width=648,height=124,rx=8,fill=('#F1F5F9' if i!=1 else '#FFF4E5'))
+        text(r,28,y+27,label,21,('#94612D' if i==1 else MUTED),'600')
+        text(r,28,y+65,a,23,INK,'600');text(r,360,y+65,b,23,INK,'600')
+        text(r,28,y+100,c,21,MUTED);text(r,360,y+100,d,21,MUTED)
+    text(r,28,767,'검산: 체결 7 + 취소 3 = 주문 10 → NORMAL',24,BLUE,'600')
     ET.ElementTree(r).write(OUT/'recovery.svg',encoding='utf-8',xml_declaration=True)
 
 

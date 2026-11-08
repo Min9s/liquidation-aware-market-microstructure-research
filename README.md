@@ -1,12 +1,18 @@
-# OMS Simulator
+# Order Management System Simulator
 
 취소 중 체결과 장애가 겹쳐도, **주문 상태·현금·보유 수량을 확인하며 복구하는 Order Management System 시뮬레이터**입니다.
 
 Python 3.11+, SQLite, 제한된 FIX 4.4 업무 필드
 
-[복구 시나리오](#보고-유실부터-정상-복귀까지) · [구조와 구현](#구조와-구현) · [실행](#직접-실행하기)
+**설계의 중심:** 주문 전달 전 예약 저장 → 중복 보고의 회계 반영 방지 → 대사 후 정상 복귀
 
-## 보고 유실부터 정상 복귀까지
+[복구 데모](examples/fix_order_recovery.py) · [설계 근거](docs/ENGINEERING_AUDIT.md) · [운영 절차](docs/OMS_OPERATIONS.md)
+
+## 한 주문을 끝까지 추적하기
+
+주문을 승인하면 매수 대금을 예약합니다. 체결 보고는 현금과 보유 수량을 갱신하고, 취소 요청만으로는 예약을 해제하지 않습니다. 거래소의 최종 사실을 확인해야 남은 예약을 해제할 수 있습니다.
+
+## 취소 요청은 체결을 멈추지 않습니다
 
 10개 매수 주문에서 4개가 체결된 뒤 취소를 요청합니다. 거래소에서는 3개가 더 체결되고 잔여 3개가 취소되지만, 보고가 유실됩니다. **로컬 체결은 4개, 거래소 체결은 7개**인 상태에서 프로세스를 강제 종료합니다.
 
@@ -16,7 +22,7 @@ Python 3.11+, SQLite, 제한된 FIX 4.4 업무 필드
 
 수치는 [실행 데모](examples/fix_order_recovery.py)의 수동 체결·수수료 0 합성 예제이며, 독립 Decimal 계산으로 검산합니다. 응답이 없다는 이유만으로 예약을 풀거나 주문을 재전송하지 않습니다.
 
-## 구조와 구현
+## 주문을 보내는 책임과 상태를 기록하는 책임
 
 ![호출자와 모의 거래소의 통신, OMS Core와 SQLite의 저장·검산 관계](assets/readme/architecture.svg)
 
@@ -28,7 +34,7 @@ Python 3.11+, SQLite, 제한된 FIX 4.4 업무 필드
 
 지원 진입점은 `TradingSession.create/open(journal_type=FixJournal)`입니다. 저수준 journal 직접 호출은 실행 소유권 보호를 우회합니다.
 
-## 무엇을 검증했는가
+## 실패를 주입하고, 회계 불변식으로 확인합니다
 
 **637개 테스트 통과, skip 0. 공개 실행 예제 19개 통과.**
 
@@ -37,7 +43,7 @@ Python 3.11+, SQLite, 제한된 FIX 4.4 업무 필드
 [GitHub Actions CI](https://github.com/Min9s/order-management-system-simulator/actions/workflows/ci.yml)에서 Python 3.11·3.13으로 전체 테스트와 공개 실행 예제를 검증합니다.
 [회계 불변식·설계 감사](docs/ENGINEERING_AUDIT.md) · [전체 실행 근거](docs/OPERATIONAL_EVIDENCE.md)
 
-## 직접 실행하기
+## 5분 안에 복구 시나리오 실행하기
 
 Python 3.11+, macOS/Linux. API Key·계좌·시장 데이터 없이 실행합니다.
 
