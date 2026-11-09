@@ -5,7 +5,6 @@ SOH 바이트 파싱/직렬화, BeginString/BodyLength/CheckSum, 표준 헤더�
 완전한 FIX 메시지나 FIX 엔진, 실제 거래소 연결이라고 표현하지 않는다.
 
 검토 자료는 [FIX 4.4 공식 배포](https://www.fixtrading.org/standards/fix-protocol/),
-[FIX Trading Community 주문 상태 설명](https://archive.fixtrading.org/online-specification/business-area-trade/),
 [QuickFIX FIX44 데이터 사전](https://github.com/quickfix/quickfix/blob/master/spec/FIX44.xml)이다.
 ExecType은 보고가 발생한 이유이고 OrdStatus는 현재 주문 상태다. 취소 대기 중에도 체결은 가능하다.
 QuickFIX는 [C++와 Python 바인딩](https://quickfixengine.org/c/documentation/getting-started/setting-up-your-project.html)을
