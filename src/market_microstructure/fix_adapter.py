@@ -8,6 +8,18 @@ from . import order_protocol as protocol
 from .oms_operations import OperationalJournal, reduce_operations
 
 STAMP = '20260101-00:00:00.000'  # Fixture business time, never a session SendingTime.
+# Revisions are 10 * cumulative lots + rank (1..4), strictly below 2**63.
+_MAX_ORDER_LOTS = (2**63 - 1 - 4) // 10
+
+
+def _fix_order(value, instruments):
+    spec = protocol.order(value, instruments)
+    with localcontext() as context:
+        context.prec = 128
+        lots = Decimal(spec['quantity']) / Decimal(instruments[spec['symbol']]['quantity_step'])
+        if lots > _MAX_ORDER_LOTS:
+            raise ValueError('Order quantity exceeds FIX revision capacity')
+    return spec
 
 
 def _event_id(namespace: str, value: str) -> str:
@@ -26,7 +38,7 @@ def parse_new(message, instruments):
         raise ValueError('Only limit DAY NewOrderSingle field profile supported')
     if message['54'] not in {'1', '2'} or message['60'] != STAMP:
         raise ValueError('Unsupported side or fixture business time')
-    return protocol.order(dict(source_kind=KIND, client_order_id=message['11'], symbol=message['55'],
+    return _fix_order(dict(source_kind=KIND, client_order_id=message['11'], symbol=message['55'],
         side='buy' if message['54'] == '1' else 'sell', quantity=message['38'], limit_price=message['44']), instruments)
 
 
@@ -164,8 +176,11 @@ def _decode_history(spec, messages, cancel_ids, instruments, venue_id):
 
 def reduce_fix(manager, request):
     action = request.get('action')
-    if action == 'submit' and request['order']['client_order_id'] in manager.ops.get('fix', {}).get('cancels', {}):
-        raise ValueError('New ClOrdID collides with cancel request ID')
+    if action == 'submit':
+        # Reject before operational/funding state changes, including during replay.
+        _fix_order(request['order'], manager.funded._manager.instruments)
+        if request['order']['client_order_id'] in manager.ops.get('fix', {}).get('cancels', {}):
+            raise ValueError('New ClOrdID collides with cancel request ID')
     if action not in {'fix_receive', 'fix_cancel', 'fix_query', 'fix_cancel_reject'}:
         if action == 'control' and request['mode'] == 'NORMAL' and manager.ops.get('fix', {}).get('gaps'):
             raise ValueError('Missing FIX execution facts prevent NORMAL')

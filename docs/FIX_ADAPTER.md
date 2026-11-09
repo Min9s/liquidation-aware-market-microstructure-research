@@ -94,6 +94,37 @@ CumQty 순서로 검산한 prefix가 연속일 때만 기존 도메인 reducer�
 `누적 lot 수×10 + 프로파일 이벤트 순위`로 계산하며 **FIX MsgSeqNum이나 거래소 revision이 아니다**.
 지원하는 불변 주문 프로파일에서만 사용하고 기존 정수 revision 한도를 넘으면 거부한다.
 
+### Revision representability at admission
+
+FIX new-order parsing and journal admission both validate the complete order's lot
+count before it can reserve resources or produce an outgoing request. The limit is
+`OrderQty / quantity_step <= (2**63 - 1 - 4) // 10`, or
+`922337203685477580` lots. Rank 4 is the largest supported event rank. Since every
+valid CumQty is a nonnegative lot multiple no greater than OrderQty, its derived
+revision stays below 2**63 for every supported event rank. At lot step 1e-12, the
+largest order is 922337.203685477580; one additional lot is rejected at admission.
+The calculation uses precision 128, independent of the caller's Decimal precision.
+
+Existing validation still requires finite decimal strings of at most 64 characters,
+24 coefficient digits and exponent magnitude 12; positive quantity/step/price;
+exact order/fill lot alignment; and cumulative fills no greater than OrderQty.
+These FIX field and cumulative-state constraints are unchanged. The new check is
+specific to the quantity-derived FIX revision, not native supplied revisions.
+
+Admission validation preserves the existing revision formula, stale-report order,
+fingerprints and SQLite JSON/schema. Revisions remain JSON integers in TEXT payloads;
+SQLite INTEGER command sequences are separate and unchanged. Deriving revisions from a new identity scheme
+would instead change replay/conflict semantics and require a versioned migration.
+Overflow rejection is a ValueError inside the existing transaction: commands,
+snapshots, clocks, balances and reservations remain unchanged.
+
+Storage format compatibility does not bypass code-definition compatibility.
+The existing source hash includes fix_adapter.py, so pre-patch funded/operational/
+FIX databases are still rejected under changed code. No hash is rewritten or
+allowlisted and no database migration is introduced by this patch. Old databases
+require their original code for recovery until a separately verified migration
+exists; an already admitted overflowing order is not repaired by this admission fix.
+
 예를 들어 CumQty=7/LastQty=3이 먼저 오면 누락된 4개 체결의 ID/가격을 알 수 없다.
 이 보고를 영속 보류하고 RECOVERY로 전환한다. CumQty=4의 실제 Trade가 재전달되면 4+3을
 검산한 뒤 반영한다. AvgPx로 가상 체결을 만들지 않는다. Canceled/상태 조회도 같은 제약을 받는다.
