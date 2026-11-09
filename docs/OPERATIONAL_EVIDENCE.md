@@ -1,5 +1,59 @@
 # 운영 장애와 저장 비용 검증
 
+Current publication summary and reproduction commands appear first. The later development-stage records retain their original counts, measurements and scope; they are historical evidence, not current-main results.
+
+## Current verified baseline
+
+`541cbc34932498a7ca97e2ad94f681786e4fcd47` includes [FIX revision admission hardening](FIX_ADAPTER.md) and [PR #4](https://github.com/Min9s/order-management-system-simulator/pull/4). The [hosted main run](https://github.com/Min9s/order-management-system-simulator/actions/runs/42603496103) passed 682 tests, zero skipped, 19 examples, 106 local documentation links and dependency checks on both Python 3.11 and 3.13. The 106 links describe that baseline, not a fixed count for future documentation. Local macOS 3.11.6/3.13.15 verification also passed. Existing tests include actual SIGKILL, before/after-commit recovery, accounting, cancellation races, tamper rejection and code-pinned database refusal. These are synthetic regression checks, not power-loss, FIX-session or live-venue validation.
+
+## Immutable-history A/B measurements
+
+Baseline A: `7ac443302ed6b5c29114c7ebf4522c05ee0c79af`; candidate B: `51014c92aee677c7e9c219524cf62e95c165907f`. B is now merged. Only private funded history representation changed: immutable JSON strings can be shared by deepcopy; mutable working state and history lists remain isolated. Exports decode detached dictionaries. Full replay/result/snapshot checks and SQLite DELETE/FULL durability settings remain active. No schema or migration was added; existing code-definition fingerprints still reject different implementations.
+
+The [published timing projection](../benchmarks/immutable-funded-history.csv) contains 1,792 normal observations from each of the original and revalidation experiments. [Metadata, source hashes, summaries and diagnostic projections](../benchmarks/immutable-funded-history.json) define the selected columns and SHA-256 of each externally preserved full JSON. Projections omit snapshots, process IDs, local paths and most function traces; they are not full raw archives. All retained measurement values are copied exactly. The six older benchmark JSONs remain unchanged.
+
+Each source version generated its own synthetic fixtures via APIs. At command history H=10/50/150/500, live state stays one buy10@100 with fill1@99, cash999901, inventory1 and reserved900; padding is committed policy-denied submissions. Native means FundedJournal, Operational/FIX use TradingSession with startup/reconciliation before the steady-command timer. Submit, policy rejection, invalid rollback, fill, reconciliation, recover, validation, reopen and operational/FIX startup are covered. This is fixed-live-state history growth, not growing active populations.
+
+Environment: CPython3.13.15, macOS26.6.2 arm64, Apple M4 Max14 cores/36GiB, APFS, SQLite3.53.4; DELETE journal, synchronous FULL, fullfsync0 unchanged. One discarded warmup pair per cell; 21 submit pairs and seven pairs for other operations. A/B and scenario order randomized/interleaved with seed314159. Every observation uses a fresh subprocess and database copy; setup/import/extra equivalence checks are excluded, actual command replay/validation/commit included. Three paired diagnostic repetitions per mode/history run separately. Logical results, full recovered snapshots and exported-history hashes match; only random session owner ID/PID are normalized.
+
+Revalidation submit latency below is uninstrumented wall time in milliseconds. Δ=B−A; positive is slower. Empirical p95 is descriptive, not a tail guarantee.
+
+|Path|H|Baseline p50 / p95 ms|Candidate p50 / p95 ms|p50 Δms (%)|
+|---|---:|---:|---:|---:|
+|native|10|1.593 / 1.686|1.617 / 1.680|+0.024 (+1.50%)|
+|native|50|5.151 / 5.202|5.221 / 5.338|+0.070 (+1.37%)|
+|native|150|13.983 / 14.198|14.234 / 14.378|+0.251 (+1.79%)|
+|native|500|44.900 / 45.994|45.780 / 46.307|+0.880 (+1.96%)|
+|operational|10|1.786 / 1.821|1.661 / 1.708|-0.125 (-7.01%)|
+|operational|50|10.420 / 10.549|6.674 / 6.839|-3.746 (-35.95%)|
+|operational|150|53.681 / 54.001|19.861 / 20.258|-33.820 (-63.00%)|
+|operational|500|435.817 / 439.315|73.561 / 74.547|-362.255 (-83.12%)|
+|fix|10|2.229 / 2.264|2.112 / 2.161|-0.118 (-5.27%)|
+|fix|50|11.771 / 11.878|7.791 / 7.908|-3.980 (-33.81%)|
+|fix|150|57.147 / 58.257|22.685 / 23.183|-34.462 (-60.30%)|
+|fix|500|448.939 / 459.182|82.959 / 84.596|-365.981 (-81.52%)|
+
+At H500, normal CPU p50 (ms) was native44.499→45.333, operational435.405→73.142 and FIX448.466→82.545. Peak traced Python allocation (MiB) was0.7703→0.3751,1.1626→0.3642 and1.1683→0.3655 respectively (−51.30%,−68.68%,−68.72%); this is not RSS/native SQLite allocation. Separate phase counters: operational/FIX copy roots383.672→27.435ms /389.340→30.111ms; replay441.155→76.716ms /452.810→86.170ms. Recursive copy calls3,352,624→351,714 /3,418,137→398,380. Inclusive phase costs overlap; do not add them. Commit cost remained about0.55–0.65ms; its fluctuations are not attributed to this change.
+
+The original H500 operational/FIX p50 savings83.08%/81.50% reproduced as83.12%/81.52%. Native regressed: original H500+0.690ms/+1.53%, revalidation+0.880ms/+1.96%; H50/H150 also show small regressions. H10 is inconclusive. Revalidation exploratory paired-bootstrap savings intervals at H500: operational83.02–83.29%, FIX81.42–81.62%, native−2.52 to−0.69%;20,000 resamples with adjusted tails across12 submit cells, assuming exchangeable pairs. Host thermals, scheduling and cache drift are uncontrolled. A roughly20-minute log gap occurred in revalidation round0; cause unconfirmed, all samples retained, no command timer recorded it. Sensitivity excluding that round still gives83.137%/81.512% operational/FIX savings and1.786% native slowdown. No universal or traffic-weighted speedup, stable tail latency, cold-disk, contention, wide-Unicode workload or network result is claimed. Repeated list-prefix copies and full replay remain; no asymptotic improvement is claimed.
+
+### Verify or rerun from public inputs
+
+The public entry point and its two helpers are a path/metadata adaptation of the measured harness. Timed workload, accounting checks and diagnostic functions are retained; default full mode uses the original sample schedule. The new smoke mode checks execution only. The published adapter was smoke-tested on macOS Python3.11/3.13; its full long run was not repeated during publication cleanup. Nine timed/validation functions and classes were checked AST-identical to the measured harness, and the full default randomized schedule matches the saved observation order. Fresh timings will differ across environments; no exact timing match is promised. No saved database is required or forced across source versions.
+
+```bash
+python scripts/benchmark_history_ab.py --verify-evidence
+# Use a full Git checkout containing both pinned source commits. If shallow:
+git fetch --unshallow origin
+# Choose a NEW directory outside every Git repository:
+python scripts/benchmark_history_ab.py --output /tmp/NEW_OMS_AB_SMOKE --smoke
+python scripts/benchmark_history_ab.py --output /tmp/NEW_OMS_AB_FULL
+```
+
+Run the fetch only for a shallow checkout. Full runs take tens of minutes and produce new latency/summary/profile/memory/phase JSONs and source-compatible fixtures externally. Smoke timings are not performance evidence. Python 3.11+ on macOS/Linux, Git and the standard library suffice for this harness; neither private market data nor API keys are used. Do not use Python -O. Missing pinned Git objects fail before creating output; verification of the published projections also works from the source distribution without Git history.
+
+## Historical development evidence
+
 ## 대표 실행과 설계 판단
 
 `python examples/operational_outage.py`는 기존 durable_order_recovery의 실제 FundedJournal,
@@ -226,12 +280,6 @@ E2E `python examples/incident_recovery.py`는 부모 모의 거래소를 유지�
 이 경로의 성능을 측정하지 않았고 이전 수치를 새 경로에 적용하지 않는다.
 정확성 검증을 줄이는 성능 개선은 하지 않았다.
 
-GitHub 소개에 사용할 수 있는 검증 기반 문장:
-
-- Built an opt-in operational OMS simulator that journals incidents, risk modes, and order accounting in a single SQLite transaction with deterministic replay verification.
-- Validated crash consistency across incident creation and reconciliation commit boundaries, including a real SIGKILL recovery demo and independent synthetic venue ledger checks.
-- Implemented structured order-level diagnostics and guarded recovery controls, with 609 passing tests covering duplicate reports, cancel-fill races, and serialized admission restrictions.
-
 별도 `/tmp/oms-evidence-clean` 가상환경에 현재 패키지를 비편집 재설치한 뒤 `/tmp`에서
 새 Incident 데모를 실행해 SIGKILL·최종 독립 검산 성공을 확인했다. 새 환경의 운영 경로
 실행 확인이며 새 Linux/Windows 검증이나 해당 환경의 전체 회귀 실행을 뜻하지 않는다.
@@ -278,13 +326,7 @@ macOS arm64, warmup 50회 후 1000회, perf_counter_ns wall time이며 단위는
 네트워크는 제외하고 함수의 검산 assertion은 포함한다. 최신 어댑터 비용과 저장 경로 비용을
 더하거나 예전 약9ms를 현재 전체 레이턴시로 사용하는 것은 부적절하다. 환경 독립 CI 시간 기준은 없다.
 
-영어 프로젝트 설명:
-
-- Added a POSIX single-owner trading entry point that commits startup recovery before accepting risk, with clean and abrupt restart tests across commit boundaries.
-- Integrated a restricted FIX 4.4 business-field adapter with persistent execution-ID deduplication, missing-trade buffering, and cancel-fill race verification.
-- Verified SIGKILL recovery against an independent synthetic venue ledger, maintaining 631 passing tests and 19 executable examples without claiming FIX session or live-exchange support.
-
-면접의 주요 Trade-off는 (1) clean 종료도 미수신 거래소 사실의 부재를 증명하지 못하므로 항상
+설계상의 주요 Trade-off는 (1) clean 종료도 미수신 거래소 사실의 부재를 증명하지 못하므로 항상
 재대사 (2) FIFO 전송을 가정하지 않되 실제 Trade ID가 없는 CumQty/AvgPx만으로 회계를 만들지 않음
 (3) 기존 누적 도메인을 유지하기 위해 제한된 FIX 프로파일과 재생 비용을 수용한 점이다.
 
@@ -293,9 +335,8 @@ macOS arm64, warmup 50회 후 1000회, perf_counter_ns wall time이며 단위는
 
 ## 최종 엔지니어링 감사 결과
 
-이전 절의 수치와 코드 계약은 단계별 기록이다. 현재 제출용 판단은
-[ENGINEERING_AUDIT.md](ENGINEERING_AUDIT.md), [현재 원시 측정](../benchmarks/engineering-audit.json),
-[이력서·면접 자료](PORTFOLIO_INTERVIEW.md)를 기준으로 한다.
+이 절은 이전 FIX 엔지니어링 감사의 기록이다. [감사 당시 문서](ENGINEERING_AUDIT.md)와
+[원시 측정](../benchmarks/engineering-audit.json)을 해당 시점의 소스/테스트와 함께 읽는다.
 기능을 추가하기보다 기존 필드 변환의 결함을 재현하고 국소 수정했다.
 
 - 비조회 ExecID=0과 조회 sentinel 혼동 가능성: 상태 조회 전용으로 제한.

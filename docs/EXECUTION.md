@@ -159,7 +159,8 @@ gross가 더 큰 경우 이것만으로 승인하지 않는다. 비용이 없다
 
 합성 실행의 처리 완료 이벤트 저장·중복 처리·현금/포지션 원장 복구는 별도 모듈로 구현했다.
 계약과 사용법은 [JOURNAL.md](JOURNAL.md)를 참고한다. 실시간 주문 상태 복구와는 범위가 다르다.
-작업 순서와 검증 기록은 [PLAN.md](development/PLAN.md)에 관리한다.
+현재 OMS 검증은 [운영 근거](OPERATIONAL_EVIDENCE.md)에 있다. 이전 개발 순서와 검증 기록은
+[고정된 역사적 계획](https://github.com/Min9s/order-management-system-simulator/blob/541cbc34932498a7ca97e2ad94f681786e4fcd47/docs/development/PLAN.md)에 보존한다.
 
 ## 보유 중 위험 관측
 

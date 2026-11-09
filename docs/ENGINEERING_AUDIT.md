@@ -1,5 +1,9 @@
 # 최종 엔지니어링 감사
 
+> **Historical audit.** The findings, 637-test counts and timing table below describe the pre-FIX/pre-optimization review. All 25 core hashes in [the original JSON](../benchmarks/engineering-audit.json) match source snapshot `f1888fa9b3e9e8cb4a95d18e0e523532bd6d16ac`; its original recorded commit `885e86967ad4b6ee462ed1e02e48279be6eb1335` is retained. They are not current-main measurements.
+>
+> Current verified baseline: `541cbc34932498a7ca97e2ad94f681786e4fcd47`, including FIX admission bounds and immutable funded history. Python 3.11/3.13 [main CI](https://github.com/Min9s/order-management-system-simulator/actions/runs/42603496103) passed 682 tests and 19 demos per job. See [current evidence and reproducible A/B measurements](OPERATIONAL_EVIDENCE.md). No production certification or exhaustive state-space proof is implied.
+
 감사 범위는 현재 작업 브랜치의 Python 합성 OMS이며 상용 운영 인증이나 전수 오류 부재 증명이 아니다.
 기존 미커밋 변경을 보존했고 commit/push하지 않았다. 적용할 AGENTS.md는 발견되지 않았다.
 상태/회계/저널/운영/FIX/소유권 코어와 관련 테스트·대표 예제·README·운영 문서를 중심으로 읽었다.

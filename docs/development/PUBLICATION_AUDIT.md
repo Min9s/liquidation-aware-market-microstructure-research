@@ -2,7 +2,7 @@
 
 **Historical record:** the file inventory and verified counts below describe the
 earlier release review. The later execution module and related files are outside
-that inventory. Their current scope and verification are recorded in [PLAN.md](PLAN.md).
+that inventory. Their historical development scope is preserved in the [pinned planning record](https://github.com/Min9s/order-management-system-simulator/blob/541cbc34932498a7ca97e2ad94f681786e4fcd47/docs/development/PLAN.md). Current verification is in [OPERATIONAL_EVIDENCE.md](../OPERATIONAL_EVIDENCE.md).
 
 This is a source-release review, not an empirical research result or a guarantee
 that every possible secret pattern can be detected. No commit, remote creation,

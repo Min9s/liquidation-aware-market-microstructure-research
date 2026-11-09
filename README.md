@@ -44,7 +44,7 @@ The tests cover duplicate and out-of-order reports, cancel/fill races, conflicti
 
 Accounting checks require available cash and inventory to remain nonnegative, unresolved orders to retain their reservations, and replayed snapshots to agree with the journal. Independent ledgers check the recovery examples against the simulated exchange's execution facts.
 
-[Operational evidence](docs/OPERATIONAL_EVIDENCE.md) · [Engineering audit](docs/ENGINEERING_AUDIT.md) · [CI](https://github.com/Min9s/order-management-system-simulator/actions/workflows/ci.yml)
+[Current verification and performance evidence](docs/OPERATIONAL_EVIDENCE.md) · [Historical engineering audit](docs/ENGINEERING_AUDIT.md) · [CI](https://github.com/Min9s/order-management-system-simulator/actions/workflows/ci.yml)
 
 ## Run locally
 
