@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from decimal import localcontext
+import json
 
 from .execution_contracts import KIND, fields, number
 from .order_lifecycle import OrderManager
@@ -15,6 +16,8 @@ class FundedOrderManager:
     def __init__(self, instruments, policy, venue_id="synthetic-venue"):
         self._manager = OrderManager(instruments, venue_id)
         self._policy = funding.policy(policy, self._manager.instruments)
+        # A trial copies this list, but safely shares its immutable JSON strings.
+        # Decode fresh public values only at export; never retain caller aliases.
         self._log = []
         self._last_decision_ns = None
 
@@ -63,8 +66,8 @@ class FundedOrderManager:
                         reason = failures[0]["name"] + "_exceeded"
         if reason is None:
             self._manager = trial
-        self._log.append(dict(action="submit", order=deepcopy(outgoing), now_ns=now_ns, marks=quotes,
-                              accepted=reason is None, reason=reason))
+        self._log.append(protocol.canonical(dict(action="submit", order=outgoing, now_ns=now_ns, marks=quotes,
+                                                accepted=reason is None, reason=reason)))
         self._last_decision_ns = now_ns
         return funding.serialize(dict(accepted=reason is None, reason=reason,
                                       order=outgoing if reason is None else None,
@@ -78,7 +81,7 @@ class FundedOrderManager:
         if balances["available_cash"] < 0 or any(q < 0 for q in balances["available_inventory"].values()):
             raise ValueError("Report violates funded account invariants")
         self._manager = trial
-        self._log.append(dict(action=action, **deepcopy(arguments)))
+        self._log.append(protocol.canonical(dict(action=action, **arguments)))
         return outcome
 
     def apply(self, report):
@@ -103,9 +106,11 @@ class FundedOrderManager:
     def export_log(self):
         """Self-contained replay input; in-memory, not a durable journal."""
         self._manager._check_owner()
-        return deepcopy(dict(source_kind=KIND, schema="funded-orders-log-v1",
-                             instruments=self._manager.instruments, policy=self._policy,
-                             venue_id=self._manager.venue_id, events=self._log))
+        bundle = deepcopy(dict(source_kind=KIND, schema="funded-orders-log-v1",
+                               instruments=self._manager.instruments, policy=self._policy,
+                               venue_id=self._manager.venue_id))
+        bundle["events"] = [json.loads(record) for record in self._log]
+        return bundle
 
     @classmethod
     def replay(cls, bundle):
